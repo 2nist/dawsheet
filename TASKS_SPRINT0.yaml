@@ -1,0 +1,62 @@
+# DAWSheet Sprint 0 Backlog
+- title: "Schema sync pipeline (types + validators + CI drift gate)"
+  owner: "Core"
+  refs: ["/docs/DAWSHEET_PRD.md", "/spec/*.json"]
+  acceptance:
+    - "TS types generated to /apps/gas/types.ts"
+    - "Java models generated to /apps/proxy-java/src/main/java/io/dawsheet/model"
+    - "AJV validation wired in GAS utilities"
+    - "CI fails if generated files are stale"
+  tasks:
+    - "Implement /tools/generate-types.mjs (JSON Schema -> TS + Java)"
+    - "Add npm scripts & Gradle task to call generators"
+    - "Add CI job codegen-and-drift-check"
+
+- title: "Proxy handlers baseline + Transform engine v1"
+  owner: "Core"
+  refs: ["/spec/commands.schema.json"]
+  acceptance:
+    - "Handlers: NOTE.PLAY, CC.SET, CC.RAMP, PROGRAM.CHANGE, DAW.SCENE.LAUNCH, DAW.CLIP.LAUNCH"
+    - "Transforms: transpose, humanize, quantize, limit, curve"
+    - "Actionable NACK messages with path/value"
+
+- title: "GAS Sidebar: Command Builder v1"
+  owner: "Core + UX"
+  refs: ["/docs/DAWSHEET_PRD.md", "/spec/commands.schema.json"]
+  acceptance:
+    - "Create/edit NOTE/CC/PROGRAM with live validation"
+    - "Writes to Commands_Key with color rules"
+    - "Tooltips from schema.description"
+    - "Keyboard shortcuts mapped"
+
+- title: "Song Library data layer + endpoints"
+  owner: "Library"
+  refs: ["/spec/song.schema.json", "/spec/scale.schema.json", "/spec/chord.schema.json"]
+  acceptance:
+    - "Tabs: Songs, Chords, Scales with header-driven AOA<->Objects transformers"
+    - "Functions: getSongs, getSong(id), saveSong(data)"
+    - "All read/write validated via schemas"
+
+- title: "Theory engine: diatonic generator + chord detection"
+  owner: "Library"
+  refs: ["/docs/DAWSHEET_PRD.md#song-library--theory-layer"]
+  acceptance:
+    - "generateDiatonicChords(key) returns correct qualities (Table 2)"
+    - "detectChord(notesArray) identifies root/inversions for triads; ranks ties"
+    - "GasT unit tests cover cases"
+
+- title: "Song → Timeline bridge"
+  owner: "Library + Core"
+  refs: ["/spec/song.schema.json", "/spec/commands.schema.json"]
+  acceptance:
+    - "songToCommands(songId, mode) emits valid envelopes with at/quantize"
+    - "Modes: block chords, simple arpeggio"
+    - "Import modal in UI; preview count & timing"
+
+- title: "CI bootstrap & repo hygiene"
+  owner: "Core"
+  refs: ["/.github/workflows/ci.yml"]
+  acceptance:
+    - "CI green on main"
+    - "Prettier/eslint set up (where applicable)"
+    - "PR template in place; CODEOWNERS for /spec"
