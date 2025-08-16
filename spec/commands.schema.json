@@ -24,7 +24,7 @@
       "oneOf": [
         {"type": "string", "const": "now"},
         {"type": "string", "pattern": "^\\d+:\\d+(:\\d+)?$"},
-        {"type": "string", "format": "date-time"}
+        {"type": "string", "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"}
       ]
     },
     "quantize": {
@@ -71,24 +71,24 @@
     },
     "typedPayload": {
       "oneOf": [
-        {"properties": {"type": {"const": "NOTE.PLAY"}, "payload": {"$ref": "#/$defs/payloads/notePlay"}}},
-        {"properties": {"type": {"const": "CHORD.PLAY"}, "payload": {"$ref": "#/$defs/payloads/chordPlay"}}},
-        {"properties": {"type": {"const": "ARPEGGIATE"}, "payload": {"$ref": "#/$defs/payloads/arpeggiate"}}},
-        {"properties": {"type": {"const": "CC.SET"}, "payload": {"$ref": "#/$defs/payloads/ccSet"}}},
-        {"properties": {"type": {"const": "CC.RAMP"}, "payload": {"$ref": "#/$defs/payloads/ccRamp"}}},
-        {"properties": {"type": {"const": "CC.LFO"}, "payload": {"$ref": "#/$defs/payloads/ccLfo"}}},
-        {"properties": {"type": {"const": "PROGRAM.CHANGE"}, "payload": {"$ref": "#/$defs/payloads/programChange"}}},
-        {"properties": {"type": {"const": "PITCH.BEND"}, "payload": {"$ref": "#/$defs/payloads/pitchBend"}}},
-        {"properties": {"type": {"const": "AFTERTOUCH"}, "payload": {"$ref": "#/$defs/payloads/aftertouch"}}},
-        {"properties": {"type": {"const": "DAW.SCENE.LAUNCH"}, "payload": {"$ref": "#/$defs/payloads/dawSceneLaunch"}}},
-        {"properties": {"type": {"const": "DAW.CLIP.LAUNCH"}, "payload": {"$ref": "#/$defs/payloads/dawClipLaunch"}}},
-        {"properties": {"type": {"const": "DAW.TRACK.ARM"}, "payload": {"$ref": "#/$defs/payloads/dawTrackArm"}}},
-        {"properties": {"type": {"const": "OSC.SEND"}, "payload": {"$ref": "#/$defs/payloads/oscSend"}}},
-        {"properties": {"type": {"const": "DEVICE.PARAM_SET"}, "payload": {"$ref": "#/$defs/payloads/deviceParamSet"}}},
-        {"properties": {"type": {"const": "MACRO.TRIGGER"}, "payload": {"$ref": "#/$defs/payloads/macroTrigger"}}},
-        {"properties": {"type": {"const": "CUE.GOTO"}, "payload": {"$ref": "#/$defs/payloads/cueGoto"}}},
-        {"properties": {"type": {"const": "TRANSPORT.TEMPO_SET"}, "payload": {"$ref": "#/$defs/payloads/tempoSet"}}},
-        {"properties": {"type": {"const": "SYNC.MIDI_CLOCK_TX"}, "payload": {"$ref": "#/$defs/payloads/midiClockTx"}}}
+        {"type": "object", "properties": {"type": {"const": "NOTE.PLAY"}, "payload": {"$ref": "#/$defs/payloads/notePlay"}}},
+        {"type": "object", "properties": {"type": {"const": "CHORD.PLAY"}, "payload": {"$ref": "#/$defs/payloads/chordPlay"}}},
+        {"type": "object", "properties": {"type": {"const": "ARPEGGIATE"}, "payload": {"$ref": "#/$defs/payloads/arpeggiate"}}},
+        {"type": "object", "properties": {"type": {"const": "CC.SET"}, "payload": {"$ref": "#/$defs/payloads/ccSet"}}},
+        {"type": "object", "properties": {"type": {"const": "CC.RAMP"}, "payload": {"$ref": "#/$defs/payloads/ccRamp"}}},
+        {"type": "object", "properties": {"type": {"const": "CC.LFO"}, "payload": {"$ref": "#/$defs/payloads/ccLfo"}}},
+        {"type": "object", "properties": {"type": {"const": "PROGRAM.CHANGE"}, "payload": {"$ref": "#/$defs/payloads/programChange"}}},
+        {"type": "object", "properties": {"type": {"const": "PITCH.BEND"}, "payload": {"$ref": "#/$defs/payloads/pitchBend"}}},
+        {"type": "object", "properties": {"type": {"const": "AFTERTOUCH"}, "payload": {"$ref": "#/$defs/payloads/aftertouch"}}},
+        {"type": "object", "properties": {"type": {"const": "DAW.SCENE.LAUNCH"}, "payload": {"$ref": "#/$defs/payloads/dawSceneLaunch"}}},
+        {"type": "object", "properties": {"type": {"const": "DAW.CLIP.LAUNCH"}, "payload": {"$ref": "#/$defs/payloads/dawClipLaunch"}}},
+        {"type": "object", "properties": {"type": {"const": "DAW.TRACK.ARM"}, "payload": {"$ref": "#/$defs/payloads/dawTrackArm"}}},
+        {"type": "object", "properties": {"type": {"const": "OSC.SEND"}, "payload": {"$ref": "#/$defs/payloads/oscSend"}}},
+        {"type": "object", "properties": {"type": {"const": "DEVICE.PARAM_SET"}, "payload": {"$ref": "#/$defs/payloads/deviceParamSet"}}},
+        {"type": "object", "properties": {"type": {"const": "MACRO.TRIGGER"}, "payload": {"$ref": "#/$defs/payloads/macroTrigger"}}},
+        {"type": "object", "properties": {"type": {"const": "CUE.GOTO"}, "payload": {"$ref": "#/$defs/payloads/cueGoto"}}},
+        {"type": "object", "properties": {"type": {"const": "TRANSPORT.TEMPO_SET"}, "payload": {"$ref": "#/$defs/payloads/tempoSet"}}},
+        {"type": "object", "properties": {"type": {"const": "SYNC.MIDI_CLOCK_TX"}, "payload": {"$ref": "#/$defs/payloads/midiClockTx"}}}
       ]
     },
     "payloads": {
