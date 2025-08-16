@@ -2,7 +2,16 @@
 
 Hybrid orchestration: Google Sheets + Apps Script (GAS) for UI/event bus, Java proxy for real-time MIDI/OSC/DAW control.
 
-## Setup
+## 🛠️ Development Setup
+
+### Quick Start from GitHub
+
+```bash
+git clone https://github.com/2nist/dawsheet.git
+cd dawsheet
+```
+
+### Prerequisites
 
 1.  Clone repo, run `infra/create_topics.sh` to create Pub/Sub topics/subscription.
 2.  Create service account, grant Pub/Sub roles, and add key (see infra/service_accounts.md).
