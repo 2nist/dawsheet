@@ -1,0 +1,87 @@
+# --- DAWSheet .gitignore ---
+
+# Sensitive files - DO NOT COMMIT
+key.json
+*.p12
+*.pem
+.env
+.env.local
+.env.production
+
+# Google Apps Script
+.clasp.json
+
+# Java/Gradle
+dawsheet/apps/proxy-java/build/
+dawsheet/apps/proxy-java/.gradle/
+dawsheet/apps/proxy-java/gradle-app.setting
+dawsheet/apps/proxy-java/.gradletasknamecache
+*.class
+*.jar
+*.war
+*.ear
+*.logs
+hs_err_pid*
+
+# IDE files
+.vscode/
+.idea/
+*.iml
+*.iws
+*.ipr
+.project
+.classpath
+.settings/
+
+# Node.js (if needed for tooling)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+
+# Temporary files
+*.tmp
+*.temp
+*.log
+*.cache
+
+# Build outputs
+dist/
+build/
+target/
+out/
+
+# Test outputs
+test-results/
+coverage/
+
+# Documentation builds
+docs/_build/
+docs/.doctrees/
+
+# Backup files
+*.bak
+*.backup
+*~
+
+# Generated files that should not be versioned
+dawsheet/apps/gas/.clasp.json
