@@ -12,10 +12,11 @@ key.json
 .clasp.json
 
 # Java/Gradle
-dawsheet/apps/proxy-java/build/
-dawsheet/apps/proxy-java/.gradle/
-dawsheet/apps/proxy-java/gradle-app.setting
-dawsheet/apps/proxy-java/.gradletasknamecache
+apps/proxy-java/build/
+apps/proxy-java/.gradle/
+apps/proxy-java/gradle-app.setting
+apps/proxy-java/.gradletasknamecache
+/.gradle/
 *.class
 *.jar
 *.war
@@ -84,4 +85,4 @@ docs/.doctrees/
 *~
 
 # Generated files that should not be versioned
-dawsheet/apps/gas/.clasp.json
+apps/gas/.clasp.json
