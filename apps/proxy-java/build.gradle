@@ -31,7 +31,13 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.10.1'
 
     // JUnit Jupiter for testing.
-    testImplementation 'org.junit.jupiter:junit-jupiter:5.9.3'
+    testImplementation 'org.junit.jupiter:junit-jupiter-api:5.9.3'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.9.3'
+
+        // Jackson for JSON mapping
+        implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
+        // networknt JSON Schema validator
+        implementation 'com.networknt:json-schema-validator:1.0.87'
 }
 
 java {
@@ -83,3 +89,8 @@ tasks.named('run').configure {
 }
 // Set our custom task as the one to run by default
 defaultTasks 'runWithEnv'
+
+// Use JUnit 5 platform for tests
+test {
+    useJUnitPlatform()
+}

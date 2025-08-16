@@ -7,8 +7,11 @@ package io.dawsheet.schema;
 public class AckStatus {
     public String type;
     public String origin;
+    public String target;
     public String receivedAt;
+    public String effectiveAt;
     public String proxy;
     public boolean ok;
+    public String code;
     public String error;
 }
