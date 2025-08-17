@@ -11,6 +11,19 @@ key.json
 # Google Apps Script
 .clasp.json
 
+# Local Google Cloud SDK and gcloud artifacts (ignore large unneeded folders)
+# If you have the Cloud SDK installed inside this repo (e.g. for local dev), ignore it
+/google-cloud-sdk/
+google-cloud-sdk/
+
+# gcloud user/config directories sometimes copied into project roots
+.config/gcloud/
+.gcloud/
+gcloud/
+
+# Local scripts that wrap gcloud env setup
+cloud_env.bat
+
 # Java/Gradle
 dawsheet/apps/proxy-java/build/
 dawsheet/apps/proxy-java/.gradle/
@@ -65,7 +78,7 @@ node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
-package-lock.json
+# package-lock.json
 
 # macOS
 .DS_Store
