@@ -19,7 +19,7 @@ jobs:
           node-version: '18'
 
       - name: Restore SA key
-        run: echo "${{ secrets.SA_KEY }}" | base64 --decode > apps/gas/sa.json
+        run: echo "${{ secrets.SA_KEY }}" | base64 --decode > sa.json
 
       - name: Generate .clasp.json in apps/gas
         run: |
@@ -31,7 +31,9 @@ jobs:
 
       - name: Login clasp with service account
         working-directory: apps/gas
-        run: npx clasp login --creds sa.json
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ../sa.json
+        run: npx clasp login
 
       - name: Push Apps Script
         working-directory: apps/gas
@@ -39,4 +41,4 @@ jobs:
 
       - name: Cleanup
         if: always()
-        run: shred -u apps/gas/sa.json || rm -f apps/gas/sa.json || true
+        run: shred -u sa.json || rm -f sa.json || true
