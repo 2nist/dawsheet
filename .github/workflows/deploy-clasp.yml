@@ -31,7 +31,7 @@ jobs:
 
       - name: Login clasp with service account
         working-directory: apps/gas
-        run: npx clasp login --credsFile ../sa.json
+        run: npx clasp login --creds ../sa.json
 
       - name: Push Apps Script
         working-directory: apps/gas
