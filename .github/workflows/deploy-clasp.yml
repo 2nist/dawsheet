@@ -3,6 +3,8 @@ name: Deploy Apps Script (clasp)
 on:
   push:
     branches: [ main ]
+  # Allow manual runs from the Actions UI for testing
+  workflow_dispatch: {}
 
 jobs:
   deploy:
