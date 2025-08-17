@@ -1,22 +1,28 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
   <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DAWSheet Configuration</title>
     <base target="_top">
     <style>
       body { font-family: Arial, sans-serif; padding: 12px; }
-      label { display:block; margin-top:8px; }
-      input { width:100%; }
-      button { margin-top:12px; }
+      label { display: block; margin-block-start: 8px; }
+      input { inline-size: 100%; box-sizing: border-box; }
+      button { margin-block-start: 12px; }
+  .field { margin-block-end: 6px; }
     </style>
   </head>
   <body>
-    <h3>DAWSheet Configuration</h3>
-    <label>GCP Project ID
-      <input id="project" />
-    </label>
-    <label>Commands Pub/Sub Topic
-      <input id="topic" />
-    </label>
+    <h3 id="title">DAWSheet Configuration</h3>
+    <div class="field">
+      <label for="project">GCP Project ID</label>
+      <input id="project" aria-labelledby="title" />
+    </div>
+    <div class="field">
+      <label for="topic">Commands Pub/Sub Topic</label>
+      <input id="topic" aria-labelledby="title" />
+    </div>
     <button onclick="save()">Save</button>
     <script>
       function load() {
