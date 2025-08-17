@@ -1,0 +1,54 @@
+name: Deploy Apps Script (clasp)
+
+on:
+  push:
+    branches: [ main ]
+
+jobs:
+  deploy:
+    name: Deploy Apps Script via clasp
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Restore SA key
+        # Expects SA_KEY to be a base64-encoded service account JSON
+        run: |
+          echo "Restoring service account key to sa.json"
+          echo "${{ secrets.SA_KEY }}" | base64 --decode > sa.json
+
+      - name: Generate .clasp.json in apps/gas
+        run: |
+          mkdir -p apps/gas
+          echo "{\"scriptId\": \"${{ secrets.SCRIPT_ID }}\", \"rootDir\": \"\"}" > apps/gas/.clasp.json
+
+      - name: Install clasp
+        run: npm install -g @google/clasp
+
+      - name: Login clasp with service account
+        working-directory: apps/gas
+        run: |
+          # clasp login expects the creds path relative to the working directory; sa.json is at repo root
+          clasp login --creds ../sa.json
+
+      - name: Push Apps Script
+        working-directory: apps/gas
+        run: |
+          # Push local apps/gas contents to the Apps Script project
+          clasp push --force
+
+      - name: Cleanup
+        if: always()
+        run: |
+          # remove sensitive files from runner
+          shred -u sa.json || rm -f sa.json || true
+
+    # Require the following secrets to be set in the repo or organization:
+    # - SA_KEY: base64-encoded service account JSON
+    # - SCRIPT_ID: Apps Script scriptId for the project
