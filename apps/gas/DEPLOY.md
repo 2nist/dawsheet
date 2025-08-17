@@ -155,3 +155,13 @@ jobs:
 - [ ] Set Script Properties (`GCP_PROJECT_ID`, `COMMANDS_TOPIC`) in the Apps Script editor or with a small helper script
 
 If you want, I can add a small utility script that creates `.clasp.json` from an environment variable and a GitHub Actions workflow file in `.github/workflows` that runs the above CI snippet securely — tell me whether you prefer service-account or interactive deploy in CI.
+
+## Troubleshooting common local issues
+
+- If PowerShell shows an error when running the recommended install command, make sure you didn't copy a stray backtick. The correct command in PowerShell is:
+
+```powershell
+npm install -g @google/clasp
+```
+
+- On Windows, you may need to run PowerShell as Administrator to install global npm packages, or install to a user location with `npm install -g --prefix %USERPROFILE%\npm @google/clasp` and add that `npm` folder to your PATH.

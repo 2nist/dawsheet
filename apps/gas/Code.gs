@@ -27,10 +27,17 @@ function onEdit(e) {
   if (payload) {
     publish(PropertiesService.getScriptProperties().getProperty('COMMANDS_TOPIC'), payload);
     e.range.setBackground('#fff2cc'); // Give user feedback
+    // Remember which cell we highlighted so the clear trigger can find it.
+    try {
+      PropertiesService.getDocumentProperties().setProperty('LAST_HIGHLIGHT', `${e.range.getSheet().getName()}!${e.range.getA1Notation()}`);
+    } catch (err) {
+      Logger.log('Failed to save LAST_HIGHLIGHT: ' + err);
+    }
     // Schedule the color to be cleared
+    // Use a time-based trigger to avoid issues with onEdit restrictions.
     ScriptApp.newTrigger('clearCellColor')
-      .forSpreadsheet(SpreadsheetApp.getActive())
-      .at(new Date(new Date().getTime() + 2000))
+      .timeBased()
+      .after(2000)
       .create();
   }
 }
