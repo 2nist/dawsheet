@@ -26,6 +26,15 @@ jobs:
           mkdir -p apps/gas
           echo "{\"scriptId\": \"${{ secrets.SCRIPT_ID }}\", \"rootDir\": \"\"}" > apps/gas/.clasp.json
 
+      - name: Verify sa.json and .clasp.json
+        run: |
+          echo "Listing sa.json location and size:"
+          ls -l "$GITHUB_WORKSPACE/sa.json" || true
+          echo "sa.json type field (should be 'service_account'):" 
+          node -e "try{console.log(require(process.env.GITHUB_WORKSPACE + '/sa.json').type)}catch(e){console.error('failed to read sa.json:', e.message); exit(0)}"
+          echo "---- .clasp.json ----"
+          cat apps/gas/.clasp.json || true
+
       - name: Install clasp
         run: npm install -g @google/clasp
 
@@ -33,7 +42,7 @@ jobs:
         working-directory: apps/gas
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/sa.json
-        run: npx clasp login
+        run: npx clasp login --service-account --debug
 
       - name: Push Apps Script
         working-directory: apps/gas
