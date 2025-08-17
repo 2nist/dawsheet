@@ -35,10 +35,16 @@ function onEdit(e) {
     }
     // Schedule the color to be cleared
     // Use a time-based trigger to avoid issues with onEdit restrictions.
-    ScriptApp.newTrigger('clearCellColor')
-      .timeBased()
-      .after(2000)
-      .create();
+    try {
+      const trig = ScriptApp.newTrigger('clearCellColor')
+        .timeBased()
+        .after(2000)
+        .create();
+      // remember the trigger id so we can remove it later and avoid accumulation
+      PropertiesService.getDocumentProperties().setProperty('LAST_CLEAR_TRIGGER', trig.getUniqueId());
+    } catch (err) {
+      Logger.log('Failed to create clearCellColor trigger: ' + err);
+    }
   }
 }
 
@@ -58,7 +64,27 @@ function clearCellColor(e) {
       if (sheet) {
         sheet.getRange(parts[1]).setBackground(null);
       }
-      props.deleteProperty('LAST_HIGHLIGHT');
+        props.deleteProperty('LAST_HIGHLIGHT');
+        // Remove the time-based trigger we created for clearing the color, if present.
+        const trigId = props.getProperty('LAST_CLEAR_TRIGGER');
+        if (trigId) {
+          try {
+            const triggers = ScriptApp.getProjectTriggers();
+            for (let i = 0; i < triggers.length; i++) {
+              try {
+                if (triggers[i].getUniqueId && triggers[i].getUniqueId() === trigId) {
+                  ScriptApp.deleteTrigger(triggers[i]);
+                  break;
+                }
+              } catch (innerErr) {
+                // ignore errors checking triggers
+              }
+            }
+          } catch (tErr) {
+            Logger.log('Failed to remove clear trigger: ' + tErr);
+          }
+          props.deleteProperty('LAST_CLEAR_TRIGGER');
+        }
     } catch (err) {
       Logger.log('clearCellColor error: ' + err);
     }
