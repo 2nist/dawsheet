@@ -3,7 +3,6 @@ name: Deploy Apps Script (clasp)
 on:
   push:
     branches: [ main ]
-  # Allow manual runs from the Actions UI for testing
   workflow_dispatch: {}
 
 jobs:
@@ -20,8 +19,7 @@ jobs:
           node-version: '18'
 
       - name: Restore SA key
-        # Expects SA_KEY to be a base64-encoded service account JSON
-    run: echo "${{ secrets.SA_KEY }}" | base64 --decode > sa.json
+        run: echo "${{ secrets.SA_KEY }}" | base64 --decode > sa.json
 
       - name: Generate .clasp.json in apps/gas
         run: |
@@ -33,22 +31,12 @@ jobs:
 
       - name: Login clasp with service account
         working-directory: apps/gas
-        run: |
-          # clasp login expects the creds path relative to the working directory; sa.json is at repo root
-          clasp login --creds ../sa.json
+        run: npx clasp login --creds ../sa.json
 
       - name: Push Apps Script
         working-directory: apps/gas
-        run: |
-          # Push local apps/gas contents to the Apps Script project
-          clasp push --force
+        run: npx clasp push --force
 
       - name: Cleanup
         if: always()
-        run: |
-          # remove sensitive files from runner
-          shred -u sa.json || rm -f sa.json || true
-
-    # Require the following secrets to be set in the repo or organization:
-    # - SA_KEY: base64-encoded service account JSON
-    # - SCRIPT_ID: Apps Script scriptId for the project
+        run: shred -u sa.json || rm -f sa.json || true
