@@ -35,24 +35,13 @@ jobs:
           echo "---- .clasp.json ----"
           cat apps/gas/.clasp.json || true
 
-      - name: Install clasp
-        run: npm install -g @google/clasp
+      - name: Install googleapis
+        run: npm install googleapis
 
-      - name: Login clasp with service account
-        working-directory: apps/gas
+      - name: Deploy via Apps Script API
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/sa.json
-        run: npx clasp login
-
-      - name: Verify clasp identity
-        working-directory: apps/gas
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/sa.json
-        run: npx clasp whoami
-
-      - name: Push Apps Script
-        working-directory: apps/gas
-        run: npx clasp push --force
+        run: node scripts/deploy-apps-script.js "${{ secrets.SCRIPT_ID }}" apps/gas
 
       - name: Cleanup
         if: always()
