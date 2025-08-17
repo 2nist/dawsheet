@@ -165,3 +165,17 @@ npm install -g @google/clasp
 ```
 
 - On Windows, you may need to run PowerShell as Administrator to install global npm packages, or install to a user location with `npm install -g --prefix %USERPROFILE%\npm @google/clasp` and add that `npm` folder to your PATH.
+
+## Running the automated deploy from GitHub Actions (manual)
+
+I added a workflow `.github/workflows/deploy-clasp.yml` that can be run manually from the Actions UI (or it runs on pushes to `main`). To run it manually:
+
+1. Open your repository on GitHub -> Actions -> select "Deploy Apps Script (clasp)".
+2. Click "Run workflow" (right-hand side). Choose the branch you want to run from and click the green "Run workflow" button.
+
+Before running the workflow manually, add the required repository secrets (Settings → Secrets & variables → Actions):
+
+- `SA_KEY` — the base64-encoded service account JSON
+- `SCRIPT_ID` — the Apps Script `scriptId` for the project (string like `AKfy...`)
+
+The workflow will decode `SA_KEY` into `sa.json`, write `apps/gas/.clasp.json` from `SCRIPT_ID`, login clasp with the service account, and push.
