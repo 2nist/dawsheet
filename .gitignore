@@ -24,6 +24,33 @@ dawsheet/apps/proxy-java/.gradletasknamecache
 hs_err_pid*
 
 # IDE files
+# Python virtual environments (local, per-user)
+.venv/
+venv/
+env/
+ENV/
+*/.venv/
+*/venv/
+
+# Gradle caches and wrapper outputs (local build artifacts)
+**/.gradle/
+**/build/
+
+# Local Python virtualenv inside apps/proxy-java
+apps/proxy-java/.venv/
+
+# Service account or deploy keys - never commit private keys
+*.key.json
+dawsheet-deployer-key.json
+
+# Local deployment artifacts and temporary downloads
+deploy/
+download-wrapper.ps1
+
+# Archive or workspace dumps
+*.zip
+*.tar.gz
+*.tar
 .vscode/
 .idea/
 *.iml

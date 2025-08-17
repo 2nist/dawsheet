@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <style>
+      body { font-family: Arial, sans-serif; padding: 12px; }
+      label { display:block; margin-top:8px; }
+      input { width:100%; }
+      button { margin-top:12px; }
+    </style>
+  </head>
+  <body>
+    <h3>DAWSheet Configuration</h3>
+    <label>GCP Project ID
+      <input id="project" />
+    </label>
+    <label>Commands Pub/Sub Topic
+      <input id="topic" />
+    </label>
+    <button onclick="save()">Save</button>
+    <script>
+      function load() {
+        google.script.run.withSuccessHandler(function(cfg){
+          document.getElementById('project').value = cfg.GCP_PROJECT_ID || '';
+          document.getElementById('topic').value = cfg.COMMANDS_TOPIC || '';
+        }).getConfig();
+      }
+      function save(){
+        const obj = { GCP_PROJECT_ID: document.getElementById('project').value, COMMANDS_TOPIC: document.getElementById('topic').value };
+        google.script.run.withSuccessHandler(function(){ google.script.host.close(); }).saveConfig(obj);
+      }
+      load();
+    </script>
+  </body>
+</html>

@@ -13,8 +13,13 @@
 function onOpen(e) {
   SpreadsheetApp.getUi().createMenu('DAWSheet')
     .addItem('Send Note from Selection', 'sendNoteFromSelection')
+  .addItem('Send Chord from Selection', 'sendChordFromSelection')
+  .addItem('Configure DAWSheet', 'openConfigDialog')
     .addSeparator()
     .addItem('Poll Status Logs', 'pollStatus')
+  .addItem('Show Recent Logs', 'showRecentLogs')
+  .addSeparator()
+  .addItem('Help / About', 'showHelp')
     .addToUi();
 }
 

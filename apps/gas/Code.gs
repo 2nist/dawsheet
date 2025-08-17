@@ -40,8 +40,53 @@ function onEdit(e) {
  * This is a workaround for not being able to sleep in onEdit.
  */
 function clearCellColor(e) {
-    // This is a placeholder. A real implementation would need to know which cell to clear.
-    // For the MVP, the temporary highlight in onEdit is sufficient.
+    // Clear the last-highlighted cell recorded in Document Properties.
+    try {
+      const props = PropertiesService.getDocumentProperties();
+      const loc = props.getProperty('LAST_HIGHLIGHT');
+      if (!loc) return;
+      // format: sheetName!A1
+      const parts = loc.split('!');
+      const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName(parts[0]);
+      if (sheet) {
+        sheet.getRange(parts[1]).setBackground(null);
+      }
+      props.deleteProperty('LAST_HIGHLIGHT');
+    } catch (err) {
+      Logger.log('clearCellColor error: ' + err);
+    }
+}
+
+/**
+ * Send a CHORD command using the current selection. Placeholder implementation.
+ */
+function sendChordFromSelection() {
+  const sheet = SpreadsheetApp.getActiveSheet();
+  const range = sheet.getActiveRange();
+  const value = String(range.getValue()).trim();
+  if (!value) {
+    SpreadsheetApp.getUi().alert('The selected cell is empty.');
+    return;
+  }
+  // Very small heuristic: expect something like "Cmaj7" or "Am"
+  if (!/^[A-G][#b]?(m|maj|min|dim|aug|7|maj7|m7)?/i.test(value)) {
+    SpreadsheetApp.getUi().alert('Invalid chord format in cell. Expected e.g. "Cmaj7" or "Am"');
+    return;
+  }
+
+  const payload = {
+    type: 'CHORD',
+    songId: range.getSheet().getParent().getId(),
+    chord: value,
+    origin: `sheets://${range.getSheet().getName()}/${range.getA1Notation()}`
+  };
+  publish(PropertiesService.getScriptProperties().getProperty('COMMANDS_TOPIC'), payload);
+  range.setBackground('#d9ead3');
+  PropertiesService.getDocumentProperties().setProperty('LAST_HIGHLIGHT', `${range.getSheet().getName()}!${range.getA1Notation()}`);
+  ScriptApp.newTrigger('clearCellColor')
+    .timeBased()
+    .after(2000)
+    .create();
 }
 
 

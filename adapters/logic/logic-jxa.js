@@ -47,6 +47,46 @@
     // This portion should be adapted to the user's system.
   }
 
+  function importFcpxml(fcpxmlPath) {
+    activateLogic();
+    try {
+      // First attempt: ask Logic to open the FCPXML directly
+      var fcpx = Path(fcpxmlPath);
+      try {
+        app.open(fcpx);
+        console.log('Invoked app.open for FCPXML: ' + fcpxmlPath);
+        delay(1);
+        return true;
+      } catch (e) {
+        console.log('app.open failed, will fallback to shell open: ' + e);
+      }
+
+      // Fallback: use shell to open FCPXML with Logic
+      var cmd = 'open -a "Logic Pro" ' + fcpxmlPath.replace(/'/g, "'\\''");
+      console.log('Running shell command: ' + cmd);
+      var sh = $.NSTask.alloc.init;
+      sh.init();
+      // Use simpler approach: call /usr/bin/open via do shell script
+      var doShell = Application('System Events');
+      doShell.doShellScript = doShell.doShellScript || function(c) { return Application('Finder').doShellScript(c); };
+      try {
+        // Try using the Objective-C bridge to run shell command
+        ObjC.import('stdlib');
+        $.system(cmd);
+      } catch (err) {
+        // As a safer fallback, use AppleScript via osascript
+        console.log('Fallback shell execution failed: ' + err + '. Please open the FCPXML manually.');
+        return false;
+      }
+      delay(1);
+      return true;
+    } catch (err) {
+      console.log('Error during FCPXML import: ' + err);
+      return false;
+    }
+  }
+
+  // end importFcpxml
   function createMarker(name, bar) {
     activateLogic();
     // Open Marker List (window/menu navigation may differ)
@@ -104,20 +144,17 @@
         createMarker(s.name, s.startBar);
       });
     }
-
-    // Import MIDI files in directory (simple approach: open each file via Finder)
-    var fm = $.NSFileManager.defaultManager;
-    var dirPath = ObjC.unwrap($.NSString.stringWithUTF8String((exportDir).toString()).stringByStandardizingPath());
-    var enumerator = fm.enumeratorAtPath(dirPath);
-    var file;
-    while ((file = enumerator.nextObject())) {
-      var fname = ObjC.unwrap(file);
-      if (fname.toLowerCase().endsWith('.mid') || fname.toLowerCase().endsWith('.midi')) {
-        console.log('Found MIDI: ' + fname + ', import manually or extend importMidiFiles() to automate');
-      }
+    // Attempt to import generated FCPXML if present
+    var fcpxPath = exportDir + '/dawsheet.fcpxml';
+    if ($.NSFileManager.defaultManager.fileExistsAtPath(fcpxPath)) {
+      console.log('Found FCPXML at ' + fcpxPath + ', attempting import...');
+      var ok = importFcpxml(fcpxPath);
+      if (!ok) console.log('Automatic FCPXML import failed; please import manually via File → Import → Final Cut Pro XML...');
+    } else {
+      console.log('No FCPXML found; import MIDI manually or generate FCPXML using tools/generate_fcpxml.py');
     }
 
-    console.log('JXA template run complete. Adapt importMidiFiles() to your Logic version for full automation.');
+    console.log('JXA template run complete.');
   } catch (e) {
     console.log('Error in JXA script: ' + e);
   }
