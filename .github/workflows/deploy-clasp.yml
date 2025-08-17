@@ -21,9 +21,7 @@ jobs:
 
       - name: Restore SA key
         # Expects SA_KEY to be a base64-encoded service account JSON
-        run: |
-          echo "Restoring service account key to sa.json"
-          echo "${{ secrets.SA_KEY }}" | base64 --decode > sa.json
+    run: echo "${{ secrets.SA_KEY }}" | base64 --decode > sa.json
 
       - name: Generate .clasp.json in apps/gas
         run: |
