@@ -42,7 +42,13 @@ jobs:
         working-directory: apps/gas
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/sa.json
-        run: npx clasp login --service-account --debug
+        run: npx clasp login
+
+      - name: Verify clasp identity
+        working-directory: apps/gas
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/sa.json
+        run: npx clasp whoami
 
       - name: Push Apps Script
         working-directory: apps/gas
