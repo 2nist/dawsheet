@@ -85,3 +85,6 @@ docs/.doctrees/
 
 # Generated files that should not be versioned
 dawsheet/apps/gas/.clasp.json
+
+# Local Google Cloud SDK (don't commit the full SDK)
+google-cloud-sdk/
