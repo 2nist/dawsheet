@@ -12,6 +12,7 @@
  */
 function onOpen(e) {
   SpreadsheetApp.getUi().createMenu('DAWSheet')
+  .addItem('Setup Wizard', 'openSetupWizard')
     .addItem('Send Note from Selection', 'sendNoteFromSelection')
     .addSeparator()
     .addItem('Poll Status Logs', 'pollStatus')
@@ -32,9 +33,9 @@ function sendNoteFromSelection() {
     return;
   }
 
-  // Use the same validation regex as the onEdit trigger
-  if (!/^([A-G][#b]?\d).*(vel=\d+).*(dur=\d+(\.\d+)?)$/i.test(value)) {
-    SpreadsheetApp.getUi().alert('Invalid note format in cell. Expected format: "C4, vel=100, dur=0.5"');
+  // Use the same validation approach as the onEdit trigger (allow simple or full format)
+  if (!/^[A-G][#b]?\d/i.test(value)) {
+    SpreadsheetApp.getUi().alert('Invalid note format in cell. Expected format: "C4" or "C4, vel=100, dur=0.5"');
     return;
   }
 

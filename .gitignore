@@ -2,6 +2,9 @@
 
 # Sensitive files - DO NOT COMMIT
 key.json
+sa.json
+sa-key.json
+sa_key_base64.txt
 *.p12
 *.pem
 .env
@@ -12,10 +15,10 @@ key.json
 .clasp.json
 
 # Java/Gradle
-dawsheet/apps/proxy-java/build/
-dawsheet/apps/proxy-java/.gradle/
-dawsheet/apps/proxy-java/gradle-app.setting
-dawsheet/apps/proxy-java/.gradletasknamecache
+apps/proxy-java/build/
+apps/proxy-java/.gradle/
+apps/proxy-java/gradle-app.setting
+apps/proxy-java/.gradletasknamecache
 *.class
 # *.jar - commented out to allow gradle-wrapper.jar
 *.war
@@ -84,7 +87,10 @@ docs/.doctrees/
 *~
 
 # Generated files that should not be versioned
-dawsheet/apps/gas/.clasp.json
+apps/gas/.clasp.json
 
 # Local Google Cloud SDK (don't commit the full SDK)
 google-cloud-sdk/
+
+# Workspace/Editor files
+*.code-workspace
