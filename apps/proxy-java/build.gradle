@@ -28,7 +28,8 @@ dependencies {
     implementation 'com.illposed.osc:javaosc-core:0.8'
 
     // JSON parsing
-    implementation 'com.google.code.gson:gson:2.10.1'
+    implementation 'com.google.code.gson:gson:2.11.0'
+
 
     // JUnit Jupiter for testing (Gradle 9 compatible)
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
@@ -49,6 +50,9 @@ application {
 test {
     useJUnitPlatform()
 }
+
+// Make the root spec available on the classpath at runtime (copy into resources)
+
 
 // Custom task to run the application and load environment variables from a .env file
 task runWithEnv(type: JavaExec) {

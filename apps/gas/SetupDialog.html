@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DAWSheet Setup</title>
+    <base target="_top">
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 16px; }
+      label { display:block; margin-block-start: 10px; font-weight: 600; }
+      input { inline-size: 100%; padding: 6px 8px; margin-block-start: 4px; box-sizing: border-box; }
+      .row { margin-block-start: 8px; }
+      .actions { margin-block-start: 16px; display:flex; gap: 8px; }
+      button { padding: 8px 12px; }
+      .status { margin-block-start: 12px; color: #444; }
+    </style>
+  </head>
+  <body>
+    <h2>DAWSheet Setup Wizard</h2>
+    <p>Set your Google Cloud project and Pub/Sub topic names, then send a test message.</p>
+
+    <label for="projectId">GCP Project ID</label>
+    <input id="projectId" placeholder="your-project-id" />
+
+    <label for="commandsTopic">Commands Topic</label>
+    <input id="commandsTopic" placeholder="dawsheet.commands" value="dawsheet.commands" />
+
+    <label for="statusTopic">Status Topic</label>
+    <input id="statusTopic" placeholder="dawsheet.status" value="dawsheet.status" />
+
+  <label for="statusSub">Status Subscription</label>
+  <input id="statusSub" placeholder="dawsheet.status-sub" value="dawsheet.status-sub" />
+
+    <div class="actions">
+      <button onclick="save()">Save Properties</button>
+      <button onclick="testPublish()">Send Test</button>
+  <button onclick="pullStatus()">Pull Status</button>
+  <button onclick="google.script.host.close()">Close</button>
+    </div>
+    <div id="status" class="status"></div>
+
+    <script>
+      function setStatus(msg, isErr) {
+        const el = document.getElementById('status');
+        el.textContent = msg;
+        el.style.color = isErr ? '#b71c1c' : '#1b5e20';
+      }
+
+      function save() {
+        const projectId = document.getElementById('projectId').value.trim();
+        const commandsTopic = document.getElementById('commandsTopic').value.trim();
+  const statusTopic = document.getElementById('statusTopic').value.trim();
+  const statusSub = document.getElementById('statusSub').value.trim();
+        setStatus('Saving...', false);
+        google.script.run.withSuccessHandler(() => {
+          setStatus('Saved script properties.', false);
+        }).withFailureHandler(err => {
+          setStatus('Save failed: ' + err.message, true);
+  }).saveScriptProps({ projectId, commandsTopic, statusTopic, statusSub });
+      }
+
+      function testPublish() {
+        setStatus('Sending test message...', false);
+        google.script.run.withSuccessHandler(() => {
+          setStatus('Test message published to commands topic.', false);
+        }).withFailureHandler(err => {
+          setStatus('Publish failed: ' + err.message, true);
+        }).sendTestPublish();
+      }
+
+      // Prefill from current Script Properties
+      google.script.run.withSuccessHandler((props) => {
+        if (props.GCP_PROJECT_ID) document.getElementById('projectId').value = props.GCP_PROJECT_ID;
+        if (props.COMMANDS_TOPIC) document.getElementById('commandsTopic').value = props.COMMANDS_TOPIC;
+        if (props.STATUS_TOPIC) document.getElementById('statusTopic').value = props.STATUS_TOPIC;
+        if (props.STATUS_SUB) document.getElementById('statusSub').value = props.STATUS_SUB;
+      }).getScriptProps();
+
+      function pullStatus() {
+        setStatus('Pulling status...', false);
+        google.script.run.withSuccessHandler(() => {
+          setStatus('Pulled status into Logs.', false);
+        }).withFailureHandler(err => {
+          setStatus('Pull failed: ' + err.message, true);
+        }).pullStatusOnce();
+      }
+    </script>
+  </body>
+  </html>

@@ -11,6 +11,9 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import io.dawsheet.midi.MidiOut;
 import io.dawsheet.midi.NoteUtil;
+import io.dawsheet.schema.SchemaValidator;
+import io.dawsheet.proxy.MidiUtil;
+import io.dawsheet.proxy.StatusPublisher;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,13 +41,22 @@ public class App {
     public static void main(String[] args) throws Exception {
         final String projectId = getenvRequired("GCP_PROJECT_ID");
         final String subId = getenvRequired("COMMANDS_SUB");
-        final String statusTopic = System.getenv().getOrDefault("STATUS_TOPIC", "");
+    final String statusTopic = System.getenv().getOrDefault("STATUS_TOPIC", "");
         final String midiOutName = System.getenv().getOrDefault("MIDI_OUT", "");
         final String proxyId = System.getenv().getOrDefault("PROXY_ID", "java-proxy");
 
         log.info("Starting DAWSheet proxy — project={}, sub={}, midiOut='{}'", projectId, subId, midiOutName);
 
+        MidiUtil.listOutputs();
         try (MidiOut midi = new MidiOut(midiOutName)) {
+            StatusPublisher statusPublisher = null;
+            try {
+                if (!statusTopic.isEmpty()) {
+                    statusPublisher = new StatusPublisher(projectId, statusTopic);
+                }
+            } catch (Exception ex) {
+                log.warn("Status publisher init failed: {}", ex.toString());
+            }
             final CountDownLatch ready = new CountDownLatch(1);
             final ProjectSubscriptionName subscriptionName = ProjectSubscriptionName.of(projectId, subId);
 
@@ -52,7 +64,14 @@ public class App {
                 String data = message.getData().toStringUtf8();
                 try {
                     JsonObject root = gson.fromJson(data, JsonObject.class);
-                    if (root == null || !root.has("type")) {
+                    if (root == null) {
+                        throw new IllegalArgumentException("Invalid JSON");
+                    }
+                    // If envelope version is present, validate against schema first
+                    if (root.has("v")) {
+                        SchemaValidator.validate(data);
+                    }
+                    if (!root.has("type")) {
                         throw new IllegalArgumentException("Missing 'type' field");
                     }
                     String type = root.get("type").getAsString();
@@ -68,17 +87,26 @@ public class App {
                             origin = Optional.ofNullable(origin)
                                     .orElseGet(() -> root.has("origin") ? root.get("origin").getAsString() : "");
                             break;
+                        case "ROUTING.SET":
+                            ok = handleRoutingSet(root);
+                            break;
                         default:
                             log.debug("Unhandled type: {} — ignoring", type);
                     }
 
-                    if (!statusTopic.isEmpty() && origin != null && !origin.isBlank()) {
+                    if (statusPublisher != null && origin != null && !origin.isBlank()) {
+                        publishAckJson(statusPublisher, origin, proxyId, ok, null);
+                    } else if (!statusTopic.isEmpty() && origin != null && !origin.isBlank()) {
+                        // fallback to inline publisher if available
                         publishAck(projectId, statusTopic, origin, proxyId, ok, null);
                     }
                     consumer.ack();
                 } catch (Exception ex) {
                     log.error("Failed to process message {}: {}", message.getMessageId(), ex.toString());
-                    if (!statusTopic.isEmpty()) {
+                    if (statusPublisher != null) {
+                        String origin = safeOrigin(data);
+                        publishAckJson(statusPublisher, origin, proxyId, false, ex.getMessage());
+                    } else if (!statusTopic.isEmpty()) {
                         String origin = safeOrigin(data);
                         publishAck(projectId, statusTopic, origin, proxyId, false, ex.getMessage());
                     }
@@ -107,6 +135,21 @@ public class App {
                 ready.await(1, TimeUnit.MINUTES);
             }
             log.info("Exited.");
+            if (statusPublisher != null) try { statusPublisher.close(); } catch (Exception ignored) {}
+        }
+    }
+
+    private static boolean handleRoutingSet(JsonObject root) {
+        try {
+            JsonObject payload = root.getAsJsonObject("payload");
+            if (payload == null) throw new IllegalArgumentException("Missing payload for ROUTING.SET");
+            String port = payload.has("port") ? payload.get("port").getAsString() : "(default)";
+            JsonElement routes = payload.get("routes");
+            log.info("ROUTING.SET for port={} -> {}", port, routes);
+            return true; // stub only
+        } catch (Exception ex) {
+            log.warn("ROUTING.SET parse error: {}", ex.toString());
+            return false;
         }
     }
 
@@ -173,6 +216,22 @@ public class App {
             publisher.shutdown();
         } catch (Exception ex) {
             log.debug("ACK publish failed: {}", ex.toString());
+        }
+    }
+
+    private static void publishAckJson(StatusPublisher pub, String origin,
+                                        String proxyId, boolean ok, String error) {
+        try {
+            JsonObject ack = new JsonObject();
+            ack.addProperty("type", "ACK");
+            ack.addProperty("origin", origin);
+            ack.addProperty("receivedAt", Instant.now().toString());
+            ack.addProperty("proxy", proxyId);
+            ack.addProperty("ok", ok);
+            if (!ok && error != null) ack.addProperty("error", error);
+            pub.publishJson(ack.toString());
+        } catch (Exception ex) {
+            log.debug("ACK publish (json) failed: {}", ex.toString());
         }
     }
 

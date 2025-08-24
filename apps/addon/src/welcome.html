@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DAWSheet</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif; margin: 0; background:#0f172a; color:#e5e7eb; }
+    header { padding: 12px 16px; border-bottom: 1px solid #1f2937; display:flex; align-items:center; gap:8px; }
+    header img { width:20px; height:20px; }
+    h1 { font-size: 16px; margin: 0; font-weight:600; }
+    main { padding: 16px; display:flex; flex-direction:column; gap:12px; }
+    section { background:#111827; border:1px solid #1f2937; border-radius:8px; padding:12px; }
+    .row { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+    button { background:#10b981; border:none; color:#0b141d; padding:8px 12px; border-radius:6px; font-weight:600; cursor:pointer; }
+    button.secondary { background:#374151; color:#e5e7eb; }
+    small { color:#9ca3af; }
+    select, input[type="text"] { background:#0b1220; color:#e5e7eb; border:1px solid #1f2937; border-radius:6px; padding:6px 8px; }
+    a { color:#60a5fa; text-decoration:none; }
+  </style>
+</head>
+<body>
+  <header>
+    <img src="https://raw.githubusercontent.com/2nist/dawsheet/main/assets/icon.png" alt="icon" />
+    <h1>DAWSheet</h1>
+  </header>
+  <main>
+    <section>
+      <div class="row">
+        <button id="playKick">Play Test Kick</button>
+        <small>Web Audio: instant sound</small>
+      </div>
+    </section>
+    <section>
+      <div class="row" style="gap:12px; align-items:center;">
+        <button id="enableMidi">Enable MIDI</button>
+        <label>Output: <select id="midiOut"></select></label>
+        <button id="sendMidi" class="secondary">Send Test Note</button>
+      </div>
+      <small id="midiStatus">Web MIDI is optional; use loopMIDI/IAC to reach your DAW.</small>
+    </section>
+    <section>
+      <div class="row">
+        <button id="insertTimeline" class="secondary">Insert Timeline</button>
+        <button id="insertStep" class="secondary">Insert 16-Step Drum Grid</button>
+      </div>
+      <small>Template Mode writes envelopes to Emit!A:A.</small>
+    </section>
+    <section>
+      <div class="row">
+        <a href="https://github.com/2nist/dawsheet/releases" target="_blank">Advanced: Use Desktop Bridge</a>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    // Web Audio - Kick & Hat
+    function playKick() {
+      const ac = new (window.AudioContext || window.webkitAudioContext)();
+      const t0 = ac.currentTime + 0.02;
+      const kick = ac.createOscillator();
+      const gain = ac.createGain();
+      kick.type = 'sine';
+      kick.frequency.setValueAtTime(120, t0);
+      kick.frequency.exponentialRampToValueAtTime(40, t0 + 0.12);
+      gain.gain.setValueAtTime(1.0, t0);
+      gain.gain.exponentialRampToValueAtTime(0.001, t0 + 0.15);
+      kick.connect(gain).connect(ac.destination);
+      kick.start(t0); kick.stop(t0 + 0.16);
+      // light hat
+      const hat = ac.createOscillator();
+      const hatGain = ac.createGain();
+      hat.type = 'triangle';
+      hat.frequency.setValueAtTime(8000, t0 + 0.1);
+      hatGain.gain.setValueAtTime(0.15, t0 + 0.1);
+      hatGain.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.18);
+      hat.connect(hatGain).connect(ac.destination);
+      hat.start(t0 + 0.1); hat.stop(t0 + 0.2);
+    }
+
+    document.getElementById('playKick').addEventListener('click', playKick);
+
+    // Web MIDI
+    let midi = null; let outputs = [];
+    async function enableMIDI() {
+      try {
+        const access = await navigator.requestMIDIAccess({ sysex: false });
+        midi = access;
+        outputs = Array.from(access.outputs.values());
+        const sel = document.getElementById('midiOut');
+        sel.innerHTML = '';
+        outputs.forEach((o, i) => {
+          const opt = document.createElement('option');
+          opt.value = i; opt.textContent = o.name;
+          sel.appendChild(opt);
+        });
+        document.getElementById('midiStatus').textContent = outputs.length ? 'MIDI enabled' : 'No outputs. Try loopMIDI/IAC.';
+      } catch (e) {
+        document.getElementById('midiStatus').textContent = 'Web MIDI unavailable in this browser.';
+      }
+    }
+    document.getElementById('enableMidi').addEventListener('click', enableMIDI);
+
+    function sendTestNote() {
+      if (!outputs.length) return;
+      const sel = document.getElementById('midiOut');
+      const out = outputs[sel.selectedIndex || 0];
+      const ch = 0; const note = 60; const vel = 100;
+      out.send([0x90 + ch, note, vel]);
+      setTimeout(() => out.send([0x80 + ch, note, 0]), 250);
+    }
+    document.getElementById('sendMidi').addEventListener('click', sendTestNote);
+
+    // Template hooks (server-side to implement): insertTimeline, insertStepGrid
+    document.getElementById('insertTimeline').addEventListener('click', () => google.script.run.insertTimeline());
+    document.getElementById('insertStep').addEventListener('click', () => google.script.run.insertStepGrid());
+  </script>
+</body>
+</html>

@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>DAWSheet Bridge Test Client</title>
+  <style>
+    body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 16px; }
+    label { display:block; margin-block-start: 10px; font-weight: 600; }
+  input { inline-size: 100%; padding: 6px 8px; margin-block-start: 4px; box-sizing: border-box; }
+    .row { margin-block-start: 10px; }
+    .actions { margin-block-start: 16px; display:flex; flex-wrap: wrap; gap: 8px; }
+    button { padding: 8px 12px; }
+  #log { margin-block-start: 16px; border: 1px solid #ddd; padding: 8px; block-size: 200px; overflow: auto; background: #fafafa; }
+    .ok { color: #1b5e20; }
+    .err { color: #b71c1c; }
+  </style>
+</head>
+<body>
+  <h2>DAWSheet Bridge Test Client</h2>
+  <p>Use this page to connect to the local Bridge and send NOTE.PLAY messages.</p>
+
+  <label for="url">WebSocket URL</label>
+  <input id="url" value="ws://127.0.0.1:17653" />
+
+  <div class="actions">
+    <button id="connect">Connect</button>
+    <button id="disconnect">Disconnect</button>
+    <button id="hello">Send HELLO</button>
+    <button id="ping">Send PING</button>
+  </div>
+
+  <div class="row">
+    <label>NOTE.PLAY</label>
+    <div class="actions">
+      <button data-note="C4">Play C4</button>
+      <button data-note="E4">Play E4</button>
+      <button data-note="G4">Play G4</button>
+      <button data-note="C5">Play C5</button>
+    </div>
+  </div>
+
+  <pre id="log"></pre>
+
+  <script>
+    let ws;
+    const $ = sel => document.querySelector(sel);
+    const log = (msg, cls='') => {
+      const el = document.createElement('div');
+      el.textContent = msg;
+      if (cls) el.className = cls;
+      $('#log').appendChild(el);
+      $('#log').scrollTop = $('#log').scrollHeight;
+    };
+
+    const connect = () => {
+      const url = $('#url').value.trim();
+      if (ws && ws.readyState === WebSocket.OPEN) { log('Already connected'); return; }
+      ws = new WebSocket(url);
+      ws.onopen = () => log('Connected', 'ok');
+      ws.onmessage = e => log('<< ' + e.data);
+      ws.onerror = e => log('Error: ' + (e.message || e), 'err');
+      ws.onclose = () => log('Disconnected');
+    };
+    const disconnect = () => { if (ws) ws.close(); };
+
+    const send = obj => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) { log('Not connected', 'err'); return; }
+      const s = JSON.stringify(obj);
+      log('>> ' + s);
+      ws.send(s);
+    };
+
+    $('#connect').onclick = () => connect();
+    $('#disconnect').onclick = () => disconnect();
+    $('#hello').onclick = () => send({ type: 'HELLO' });
+    $('#ping').onclick = () => send({ type: 'PING', ts: Date.now() });
+
+    document.querySelectorAll('button[data-note]').forEach(b => {
+      b.onclick = () => {
+        const note = b.getAttribute('data-note');
+        send({ type: 'NOTE.PLAY', payload: { note, velocity: 100, channel: 1, durationSec: 0.3 } });
+      };
+    });
+  </script>
+</body>
+</html>

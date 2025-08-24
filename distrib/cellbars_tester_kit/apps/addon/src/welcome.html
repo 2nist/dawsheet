@@ -1,0 +1,93 @@
+<!doctype html><html><head><meta charset="utf-8"><style>
+body{font:14px system-ui,-apple-system,Segoe UI,Roboto,sans-serif;color:#0f172a;margin:0}
+header{background:#0b1220;color:white;padding:14px 16px;font-weight:700}
+section{padding:12px 16px;border-bottom:1px solid #e5e7eb}
+h3{margin:0 0 8px 0;font-size:16px}
+button{padding:8px 12px;border:0;border-radius:8px;background:#111827;color:white;cursor:pointer}
+button.secondary{background:#4b5563}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+textarea{width:100%;height:140px;font-family:ui-monospace,Menlo,Consolas,monospace;border-radius:8px;border:1px solid #cbd5e1;padding:8px}
+.tiny{font-size:12px;color:#6b7280;margin-top:6px}
+.ok{color:#065f46}.err{color:#7f1d1d}.pill{display:inline-block;padding:2px 8px;border-radius:12px;background:#e5e7eb;margin-left:6px;font-size:12px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+@media (max-width:720px){ .grid{grid-template-columns:1fr} }
+</style></head><body>
+<header>DAWSheet — CellBars</header>
+
+<section><h3>First sound</h3><div class="row">
+<button id="btnKick">Play Kick</button><button id="btnHat" class="secondary">Play Hat</button>
+<span id="latency" class="pill">Web Audio ready</span></div>
+<div class="tiny">Instant demo via Web Audio. For Logic, enable Web MIDI below and route to the IAC Driver.</div></section>
+
+<section><h3>Enable MIDI (for Logic)</h3><div class="row">
+<button id="btnMIDI">Enable MIDI</button><select id="midiOut" style="min-width:220px"></select>
+<button id="btnMIDITest" class="secondary">Send Test Note</button></div>
+<div id="midiMsg" class="tiny"></div></section>
+
+<section><h3>Bridge (Desktop) — optional</h3><div class="row">
+<button id="btnBridge">Connect to Bridge</button>
+<button id="btnBridgePing" class="secondary">Ping</button>
+<button id="btnBridgeNote" class="secondary">Bridge Test NOTE.PLAY</button>
+<button id="btnSendCompiled" class="secondary">Send Compiled Envelopes</button>
+<span id="bridgeState" class="pill">Disconnected</span></div>
+<div class="tiny">Bridge expects <code>ws://127.0.0.1:17653</code>. Run the Java bridge in <code>bridge/</code>.</div></section>
+
+<section><h3>Welcome demo sequence</h3><div class="row">
+<button id="btnLoad" class="secondary">Load from Sheet</button><button id="btnSave">Save to Sheet</button>
+<button id="btnPlayDemo" class="secondary">Play Demo</button>
+<span class="tiny">{"bpm":120,"notes":[{"t":0,"n":36,"v":110,"d":0.12,"ch":9}]</span></div>
+<textarea id="jsonBox"></textarea><div id="saveMsg" class="tiny"></div></section>
+
+<section class="grid"><div><h3>Insert Timeline</h3><div class="row"><button id="btnTimeline">Insert</button></div>
+<div class="tiny">Rows = bars/sections. Use for arrangement, not jamming.</div></div>
+<div><h3>Insert 16-Step Grid</h3><div class="row"><button id="btnGrid">Insert</button></div>
+<div class="tiny">3×16 block (checkbox, velocity, probability) on the UI tab.</div></div></section>
+
+<script>
+const AC = window.AudioContext || window.webkitAudioContext; const ctx = new AC();
+function playKick(when = ctx.currentTime + 0.02){ const o = ctx.createOscillator(), g = ctx.createGain(); o.type='sine'; o.frequency.setValueAtTime(150, when); o.frequency.exponentialRampToValueAtTime(50, when + 0.12); g.gain.setValueAtTime(0.9, when); g.gain.exponentialRampToValueAtTime(0.0001, when + 0.12); o.connect(g).connect(ctx.destination); o.start(when); o.stop(when+0.13); }
+function playHat(when = ctx.currentTime + 0.02){ const b=ctx.createBuffer(1,22050,ctx.sampleRate); const d=b.getChannelData(0); for (let i=0;i<d.length;i++) d[i]=Math.random()*2-1; const s=ctx.createBufferSource(); s.buffer=b; const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=8000; const g=ctx.createGain(); g.gain.setValueAtTime(0.35, when); g.gain.exponentialRampToValueAtTime(0.0001, when+0.06); s.connect(hp).connect(g).connect(ctx.destination); s.start(when); s.stop(when+0.07); }
+function playSnare(when = ctx.currentTime + 0.02){ const b=ctx.createBuffer(1,22050,ctx.sampleRate); const d=b.getChannelData(0); for (let i=0;i<d.length;i++) d[i]=Math.random()*2-1; const s=ctx.createBufferSource(); s.buffer=b; const bp=ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1800; bp.Q=0.7; const g=ctx.createGain(); g.gain.setValueAtTime(0.5, when); g.gain.exponentialRampToValueAtTime(0.0001, when+0.12); s.connect(bp).connect(g).connect(ctx.destination); s.start(when); s.stop(when+0.13); }
+function playMIDIDrum(note, when){ if (note===36) return playKick(when); if (note===38) return playSnare(when); if (note===42||note===46) return playHat(when); }
+
+let midiOut=null; async function enableMIDI(){ const el=document.getElementById('midiMsg'); try{ if(!navigator.requestMIDIAccess){ el.textContent='Use Chrome for Web MIDI.'; return; } const access=await navigator.requestMIDIAccess({sysex:false}); const outs=Array.from(access.outputs.values()); const sel=document.getElementById('midiOut'); sel.innerHTML=''; outs.forEach(o=>{ const opt=document.createElement('option'); opt.value=o.id; opt.textContent=o.name; sel.appendChild(opt); }); if (outs.length){ midiOut=outs[0]; sel.value=midiOut.id; sel.onchange=()=>{ midiOut=outs.find(o=>o.id===sel.value); }; el.textContent='MIDI enabled.'; } else { el.textContent='No MIDI outputs found (enable IAC Driver).'; } }catch(e){ el.textContent='MIDI error: '+e; } }
+function sendMIDINoteOn(note=36, vel=110, ch=9){ if (!midiOut) return; midiOut.send([0x90|(ch&0x0F), note&0x7F, Math.max(0,Math.min(127,vel))]); }
+function sendMIDINoteOff(note=36, ch=9){ if (!midiOut) return; midiOut.send([0x80|(ch&0x0F), note&0x7F, 0]); }
+
+function loadFromSheet(){ google.script.run.withSuccessHandler(txt=>{ document.getElementById('jsonBox').value=txt; document.getElementById('saveMsg').textContent='Loaded.'; }).getDemoSequenceJSON(); }
+function saveToSheet(){ const txt=document.getElementById('jsonBox').value; google.script.run.withSuccessHandler(()=>{ document.getElementById('saveMsg').textContent='Saved.'; }).withFailureHandler(e=>{ document.getElementById('saveMsg').innerHTML='<span class=err>'+e+'</span>'; }).saveDemoSequenceJSON(txt); }
+function playDemo(){ let obj; try{ obj=JSON.parse(document.getElementById('jsonBox').value||'{}'); } catch{ document.getElementById('saveMsg').innerHTML='<span class=err>Invalid JSON</span>'; return; } const notes=Array.isArray(obj.notes)?obj.notes:[]; const start=ctx.currentTime+0.05; notes.forEach(ev=>{ const when=start+(Number(ev.t)||0); const n=Number(ev.n)||36; const v=Number(ev.v)||100; playMIDIDrum(n,when); if(midiOut){ sendMIDINoteOn(n,v,ev.ch||9); setTimeout(()=>sendMIDINoteOff(n,ev.ch||9),(ev.d||0.1)*1000); } }); }
+
+// Bridge WebSocket
+let ws=null;
+function connectBridge(){ try{ ws=new WebSocket('ws://127.0.0.1:17653'); ws.onopen=()=>{ setBridge('Connected'); ws.send(JSON.stringify({type:'HELLO',client:'dawsheet-addon'})); }; ws.onmessage=(ev)=>{}; ws.onclose=()=>setBridge('Disconnected'); ws.onerror=()=>setBridge('Error'); }catch(e){ setBridge('Error'); } }
+function setBridge(s){ document.getElementById('bridgeState').textContent=s; }
+function pingBridge(){ if(ws&&ws.readyState===1){ ws.send(JSON.stringify({type:'PING',ts:Date.now()})); } }
+function testBridgeNote(){ if(!ws||ws.readyState!==1){ setBridge('Connect first'); return; } google.script.run.withSuccessHandler((envelopesJson)=>{ ws.send(envelopesJson); }).getTestEnvelopes(); }
+
+function sendCompiled(){
+	if(!ws||ws.readyState!==1){ setBridge('Connect first'); return; }
+	try {
+		google.script.run.withSuccessHandler((json)=>{ ws.send(json); }).getCompiledEnvelopes();
+	} catch(e) {
+		// If getCompiledEnvelopes is missing, surface a hint
+		setBridge('Missing getCompiledEnvelopes');
+	}
+}
+
+document.getElementById('btnKick').onclick=()=>playKick();
+document.getElementById('btnHat').onclick=()=>playHat();
+document.getElementById('btnMIDI').onclick=enableMIDI;
+document.getElementById('btnMIDITest').onclick=()=>{ if(!midiOut){ enableMIDI(); return; } sendMIDINoteOn(36,110,9); setTimeout(()=>sendMIDINoteOff(36,9),120); };
+document.getElementById('btnLoad').onclick=loadFromSheet;
+document.getElementById('btnSave').onclick=saveToSheet;
+document.getElementById('btnPlayDemo').onclick=playDemo;
+document.getElementById('btnTimeline').onclick=()=>google.script.run.insertTimeline();
+document.getElementById('btnGrid').onclick=()=>google.script.run.insertStepGrid16();
+document.getElementById('btnBridge').onclick=connectBridge;
+document.getElementById('btnBridgePing').onclick=pingBridge;
+document.getElementById('btnBridgeNote').onclick=testBridgeNote;
+document.getElementById('btnSendCompiled').onclick=sendCompiled;
+
+loadFromSheet();
+</script></body></html>

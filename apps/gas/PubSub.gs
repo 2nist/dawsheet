@@ -57,15 +57,4 @@ function getAccessToken() {
   return ScriptApp.getOAuthToken();
 }
 
-/**
- * A placeholder function to poll for status messages.
- * This would typically be triggered on a timer (e.g., every minute).
- * For the MVP, this is a manual stub.
- */
-function pollStatus() {
-  // In a real implementation, this would call a Cloud Function HTTP endpoint
-  // that is subscribed to the 'dawsheet.status' topic.
-  // The function would then write the latest status messages to a "Logs" sheet.
-  const logSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Logs") || SpreadsheetApp.getActiveSpreadsheet().insertSheet("Logs");
-  logSheet.appendRow([new Date(), "Polling for status... (not implemented in MVP)"]);
-}
+// Status pulling implementation lives in Status.gs
