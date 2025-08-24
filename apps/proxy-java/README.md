@@ -19,11 +19,14 @@ Environment
 Usage
 
 ```powershell
-# In apps/proxy-java
+# Easiest: from repo root
+./scripts/proxy-run.ps1
+
+# Or, from apps/proxy-java
 gradlew.bat runWithEnv
 ```
 
-Edit `.env` or export environment variables (the `runWithEnv` task will load `.env`).
+Edit `.env` or export environment variables (the `runWithEnv` task will load `.env`). On startup, the proxy logs all available MIDI outputs and marks the selected one (filter via `MIDI_OUT`). If `STATUS_TOPIC` is set, ACK/status messages are published for each command. `ROUTING.SET` is recognized and currently logged (stub).
 
 Example `.env`:
 
@@ -43,3 +46,8 @@ Create a subscription if you don't have one yet:
 ```
 
 Then type `C4, vel=100, dur=0.5` in your Sheet. You should hear a note.
+
+Next steps
+
+- In the Sheet, DAWSheet → Pull Status → Logs to fetch ACKs into a `Logs` tab.
+- See `docs/STATUS_RUNBOOK.md` for troubleshooting and details.

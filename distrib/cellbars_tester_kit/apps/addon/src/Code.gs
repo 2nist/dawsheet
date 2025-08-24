@@ -8,18 +8,27 @@ const TAB_DEMO = 'WelcomeDemo';
 const DEMO_RANGE = 'A1';
 
 function onOpen() {
-  SpreadsheetApp.getUi()
-    .createMenu('DAWSheet — CellBars')
+  const ui = safeUi_();
+  if (!ui) return;
+  ui.createMenu('DAWSheet — CellBars')
     .addItem('Open', 'showWelcome')
     .addItem('Initialize Workbook', 'initializeWorkbook')
     .addToUi();
+}
+function safeUi_(){
+  try { return SpreadsheetApp.getUi(); } catch (e) { return null; }
 }
 
 function showWelcome() {
   const html = HtmlService.createTemplateFromFile('welcome').evaluate()
     .setTitle('DAWSheet — CellBars')
     .setSandboxMode(HtmlService.SandboxMode.IFRAME);
-  SpreadsheetApp.getUi().showSidebar(html);
+  const ui = safeUi_();
+  if (ui) {
+    ui.showSidebar(html);
+  }
+  // Return HtmlOutput so running from the IDE doesn't throw and can preview output
+  return html;
 }
 
 function initializeWorkbook() {
@@ -94,6 +103,53 @@ function getTestEnvelopes(){
     "at":"now","target":"default",
     "payload":{"note":"C4","velocity":100,"durationSec":0.2,"channel":1}
   }]);
+}
+
+// Build envelopes from the 3×16 Step Grid inserted by insertStepGrid16().
+// Layout: row1=checkboxes, row2=velocity (0-127), row3=probability (0..1)
+// Named range: CTRL_STEPGRID16_BLOCK
+function getCompiledEnvelopes(){
+  const ss = SpreadsheetApp.getActive();
+  let range;
+  try {
+    range = ss.getRangeByName('CTRL_STEPGRID16_BLOCK');
+  } catch (e) {
+    range = null;
+  }
+  if (!range) {
+    // Fallback to a single test envelope if no grid is present
+    return getTestEnvelopes();
+  }
+  const rows = range.getNumRows();
+  const cols = range.getNumColumns();
+  if (rows < 3 || cols < 1) return getTestEnvelopes();
+
+  const checks = range.offset(0, 0, 1, cols).getValues()[0];
+  const vels = range.offset(1, 0, 1, cols).getValues()[0];
+  const probs = range.offset(2, 0, 1, cols).getValues()[0];
+
+  const envs = [];
+  for (let c = 0; c < cols; c++) {
+    const on = checks[c] === true;
+    const prob = Number(probs[c] || 0);
+    if (!on || prob <= 0) continue;
+    const vel = Math.max(0, Math.min(127, Number(vels[c] || 100)));
+    envs.push({
+      v: 1,
+      type: 'NOTE.PLAY',
+      id: 'cmd_' + Date.now() + '_' + Math.floor(Math.random()*1e6),
+      at: 'now',
+      target: 'default',
+      payload: {
+        note: 36, // GM Kick by default for the simple demo grid
+        velocity: vel,
+        durationSec: 0.12,
+        channel: 10
+      },
+      transform: []
+    });
+  }
+  return JSON.stringify(envs, null, 2);
 }
 
 function insertTimeline(){

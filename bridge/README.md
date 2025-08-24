@@ -9,14 +9,26 @@ Local WebSocket server for low-latency envelope playback.
 
 ## Build & Run
 
-```bash
-cd bridge
-./gradlew run           # macOS/Linux
-# or
-gradlew.bat run         # Windows
+Java 17 is required. On Windows PowerShell, use these commands:
+
+```powershell
+# From repo root
+Set-Location -Path 'H:\My Drive\dawsheet\dawsheet\bridge'
+
+# If gradlew.bat is missing, generate it using the existing wrapper
+& 'H:\My Drive\dawsheet\dawsheet\apps\proxy-java\gradlew.bat' -p "$PWD" wrapper --no-daemon
+
+# Verify wrapper
+& .\gradlew.bat --version
+
+# Build (skip tests for now)
+& .\gradlew.bat build -x test --no-daemon
+
+# Run the server
+& .\gradlew.bat run --no-daemon --console=plain
 ```
 
-You should see: BridgeServer started on ws://127.0.0.1:17653
+Expected output: `BridgeServer started on ws://127.0.0.1:17653`
 
 ## Test
 

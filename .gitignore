@@ -1,3 +1,18 @@
+# Gradle caches
+**/.gradle/
+**/build/
+
+# Apps Script clasp local metadata
+**/.clasp.json
+**/.clasp.backup.json
+**/.clasp.standalone.json
+
+# Node logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
 # --- DAWSheet .gitignore ---
 
 # Sensitive files - DO NOT COMMIT
@@ -19,6 +34,10 @@ apps/proxy-java/build/
 apps/proxy-java/.gradle/
 apps/proxy-java/gradle-app.setting
 apps/proxy-java/.gradletasknamecache
+bridge/build/
+bridge/.gradle/
+bridge/gradle-app.setting
+bridge/.gradletasknamecache
 *.class
 # *.jar - commented out to allow gradle-wrapper.jar
 *.war

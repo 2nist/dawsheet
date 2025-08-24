@@ -15,8 +15,20 @@ function onOpen(e) {
   .addItem('Setup Wizard', 'openSetupWizard')
     .addItem('Send Note from Selection', 'sendNoteFromSelection')
     .addSeparator()
-    .addItem('Poll Status Logs', 'pollStatus')
+  .addItem('Welcome Sidebar', 'openWelcomeSidebar')
+    .addSeparator()
+  .addItem('Insert Routing Matrix', 'insertRoutingMatrix')
+  .addItem('Show Compiled Routes', 'showCompiledRoutes')
+  .addSeparator()
+  .addItem('Pull Status → Logs', 'pullStatusOnce')
     .addToUi();
+
+  // Register optional Controls UI menu if available
+  try { registerControlsMenu_(); } catch (_) {}
+  // Register optional Triggers menu if available
+  try { registerTriggersMenu_(); } catch (_) {}
+  // Register optional Validator menu if available
+  try { registerValidatorMenu_(); } catch (_) {}
 }
 
 /**

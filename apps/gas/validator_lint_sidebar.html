@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DAWSheet — Lint</title>
+  <style>
+    body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,"Helvetica Neue",Arial,sans-serif;margin:0}
+    header{padding:10px 12px;border-bottom:1px solid #e5e7eb;font-weight:600}
+    section{padding:10px 12px}
+    .row{display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px dashed #eee}
+    .row:last-child{border-bottom:none}
+    .pill{font-size:12px;border-radius:999px;background:#eef2ff;color:#3730a3;padding:1px 8px}
+    button{border:1px solid #cbd5e1;border-radius:6px;background:#fff;padding:6px 10px;cursor:pointer}
+    button:hover{background:#f8fafc}
+    .muted{color:#6b7280}
+  </style>
+</head>
+<body>
+  <header>Lint Results</header>
+  <section>
+    <div id="empty" class="muted">Run “Validate Triggers Now” to populate issues.</div>
+    <div id="list"></div>
+  </section>
+  <script>
+    google.script.run.withSuccessHandler(render).valGetLintResults_();
+    function render(items){
+      const empty = document.getElementById('empty');
+      const list = document.getElementById('list');
+      list.innerHTML = '';
+      if(!items || !items.length){ empty.style.display='block'; return; }
+      empty.style.display = 'none';
+      items.forEach(it=>{
+        const row = document.createElement('div'); row.className='row';
+        const pill = document.createElement('span'); pill.className='pill'; pill.textContent = it.sheet + ' R' + it.row;
+        const msg = document.createElement('div'); msg.textContent = it.issue; msg.style.flex='1 1 auto';
+        const btn = document.createElement('button'); btn.textContent = 'Go';
+        btn.onclick = ()=> google.script.run.valGoto_(it.sheet, it.row);
+        row.appendChild(pill); row.appendChild(msg); row.appendChild(btn);
+        list.appendChild(row);
+      });
+    }
+  </script>
+</body>
+</html>

@@ -2,7 +2,7 @@
  * Opens the Setup Wizard dialog.
  */
 function openSetupWizard() {
-  const html = HtmlService.createHtmlOutputFromFile('Setup')
+  const html = HtmlService.createHtmlOutputFromFile('SetupDialog')
     .setWidth(420)
     .setHeight(420)
     .setTitle('DAWSheet Setup');
@@ -17,13 +17,14 @@ function getScriptProps() {
   return {
     GCP_PROJECT_ID: props.getProperty('GCP_PROJECT_ID') || '',
     COMMANDS_TOPIC: props.getProperty('COMMANDS_TOPIC') || 'dawsheet.commands',
-    STATUS_TOPIC: props.getProperty('STATUS_TOPIC') || 'dawsheet.status'
+  STATUS_TOPIC: props.getProperty('STATUS_TOPIC') || 'dawsheet.status',
+  STATUS_SUB: props.getProperty('STATUS_SUB') || 'dawsheet.status-sub'
   };
 }
 
 /**
  * Saves properties from the Setup Wizard.
- * @param {{projectId:string, commandsTopic:string, statusTopic:string}} p
+ * @param {{projectId:string, commandsTopic:string, statusTopic:string, statusSub?:string}} p
  */
 function saveScriptProps(p) {
   const props = PropertiesService.getScriptProperties();
@@ -31,6 +32,7 @@ function saveScriptProps(p) {
     if (p.projectId) props.setProperty('GCP_PROJECT_ID', String(p.projectId));
     if (p.commandsTopic) props.setProperty('COMMANDS_TOPIC', String(p.commandsTopic));
     if (p.statusTopic) props.setProperty('STATUS_TOPIC', String(p.statusTopic));
+   if (p.statusSub) props.setProperty('STATUS_SUB', String(p.statusSub));
   }
   return getScriptProps();
 }
