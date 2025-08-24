@@ -1,0 +1,18 @@
+{
+  "timeZone": "America/Detroit",
+  "dependencies": {},
+  "exceptionLogging": "STACKDRIVER",
+  "oauthScopes": [
+    "https://www.googleapis.com/auth/spreadsheets.currentonly",
+    "https://www.googleapis.com/auth/script.container.ui"
+  ],
+  "addOns": {
+    "common": {
+      "name": "DAWSheet — CellBars",
+      "logoUrl": "https://placehold.co/128x128?text=DAW",
+      "layoutProperties": { "primaryColor": "#111827" },
+      "homepageTrigger": { "runFunction": "showWelcome", "enabled": true }
+    },
+    "sheets": {}
+  }
+}
