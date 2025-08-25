@@ -1,21 +1,19 @@
 package io.dawsheet.pubsub;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.google.cloud.pubsub.v1.AckReplyConsumer;
 import com.google.cloud.pubsub.v1.MessageReceiver;
-import com.google.cloud.pubsub.v1.Subscriber;
 import com.google.cloud.pubsub.v1.Publisher;
-import com.google.gson.Gson;
-import com.google.protobuf.ByteString;
+import com.google.cloud.pubsub.v1.Subscriber;
 import com.google.pubsub.v1.ProjectSubscriptionName;
 import com.google.pubsub.v1.PubsubMessage;
 import com.google.pubsub.v1.TopicName;
-import io.dawsheet.midi.MidiOut;
-import io.dawsheet.parser.NoteParser;
-import io.dawsheet.schema.AckStatus;
-import io.dawsheet.schema.NoteCommand;
+import io.dawsheet.server.CommandEnvelope;
+import io.dawsheet.server.CommandRouter;
+import io.dawsheet.server.PubSubStatusPublisher;
+import io.dawsheet.server.StatusPublisher;
 
 import java.io.IOException;
-import java.time.Instant;
 import java.util.concurrent.TimeUnit;
 
 public class PubSubClient {
@@ -26,76 +24,42 @@ public class PubSubClient {
 
     private Subscriber subscriber;
     private Publisher statusPublisher;
-    private final Gson gson = new Gson();
+    private CommandRouter router;
+    private final ObjectMapper mapper = new ObjectMapper();
 
     public void start() throws IOException {
         if (projectId == null || subscriptionId == null || statusTopicId == null) {
             throw new IllegalStateException("Required environment variables are not set (GCP_PROJECT_ID, PULL_SUBSCRIPTION, STATUS_TOPIC)");
         }
 
+        TopicName statusTopicName = TopicName.of(projectId, statusTopicId);
+        statusPublisher = Publisher.newBuilder(statusTopicName).build();
+        StatusPublisher sp = new PubSubStatusPublisher(statusPublisher);
+
+        try {
+            router = new CommandRouter("commands.schema.json", sp);
+        } catch (Exception e) {
+            throw new IOException("Failed to initialize CommandRouter: " + e.getMessage(), e);
+        }
+
         ProjectSubscriptionName subscriptionName = ProjectSubscriptionName.of(projectId, subscriptionId);
-        
+
         MessageReceiver receiver = (PubsubMessage message, AckReplyConsumer consumer) -> {
             String json = message.getData().toStringUtf8();
             System.out.println("Received message: " + json);
-
-            String origin = null;
             try {
-                NoteCommand command = NoteParser.parse(json);
-                origin = command.origin; // Keep origin for ACK
-                MidiOut.play(command);
-                publishAck(origin, true, null);
+                CommandEnvelope env = mapper.readValue(json, CommandEnvelope.class);
+                router.handle(env);
                 consumer.ack();
             } catch (Exception e) {
                 System.err.println("Failed to process message: " + e.getMessage());
                 e.printStackTrace();
-                if (origin == null) {
-                    origin = getOriginFromJson(json); // Attempt to get origin for error reporting
-                }
-                if (origin != null) {
-                    publishAck(origin, false, e.getMessage());
-                }
                 consumer.nack();
             }
         };
 
         subscriber = Subscriber.newBuilder(subscriptionName, receiver).build();
         subscriber.startAsync().awaitRunning();
-
-        TopicName statusTopicName = TopicName.of(projectId, statusTopicId);
-        statusPublisher = Publisher.newBuilder(statusTopicName).build();
-    }
-
-    private void publishAck(String origin, boolean ok, String error) {
-        try {
-            AckStatus status = new AckStatus();
-            status.type = "ACK";
-            status.origin = origin;
-            status.receivedAt = Instant.now().toString();
-            status.proxy = "java-rt-bridge@" + java.net.InetAddress.getLocalHost().getHostName();
-            status.ok = ok;
-            if (error != null) {
-                status.error = error;
-            }
-
-            String jsonStatus = gson.toJson(status);
-            ByteString data = ByteString.copyFromUtf8(jsonStatus);
-            PubsubMessage pubsubMessage = PubsubMessage.newBuilder().setData(data).build();
-
-            statusPublisher.publish(pubsubMessage);
-            System.out.println("Published ACK: " + jsonStatus);
-        } catch (Exception e) {
-            System.err.println("Failed to publish ACK: " + e.getMessage());
-        }
-    }
-
-    private String getOriginFromJson(String json) {
-        try {
-            NoteCommand command = gson.fromJson(json, NoteCommand.class);
-            return command.origin;
-        } catch (Exception e) {
-            return "unknown-origin";
-        }
     }
 
     public void stop() {

@@ -1,123 +1,17 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "$id": "https://dawsheet.dev/spec/scale.schema.json",
-  "title": "DAWSheet Scale Definition v1",
+  "title": "DAWSheet Scale Object v1",
   "type": "object",
-  "required": [
-    "v",
-    "scaleId",
-    "name",
-    "intervals"
-  ],
-  "additionalProperties": false,
+  "required": ["name", "tonic", "intervals"],
   "properties": {
-    "v": {
-      "const": 1
-    },
-    "scaleId": {
-      "type": "string",
-      "description": "Unique id for scale/mode"
-    },
-    "name": {
-      "type": "string",
-      "description": "Display name, e.g., Major (Ionian)"
-    },
-    "aliases": {
-      "type": "array",
-      "items": {
-        "type": "string"
-      }
-    },
-    "intervals": {
-      "type": "array",
-      "minItems": 1,
-      "items": {
-        "type": "string",
-        "pattern": "^(P|m|M|A|d)?\\d+$"
-      },
-      "description": "Scale degrees as intervals from tonic"
-    },
-    "diatonic_chords": {
-      "type": "array",
-      "description": "Precomputed chords for quick lookup (optional cache)",
-      "items": {
-        "type": "object",
-        "required": [
-          "degree",
-          "quality"
-        ],
-        "properties": {
-          "degree": {
-            "type": "integer",
-            "minimum": 1,
-            "maximum": 7
-          },
-          "quality": {
-            "type": "string",
-            "description": "e.g., maj, min, dim, aug, dom7"
-          },
-          "symbol": {
-            "type": "string"
-          }
-        },
-        "additionalProperties": true
-      }
-    }
+    "name": {"type": "string", "description": "The name of the scale (e.g., 'Major', 'Dorian')."},
+    "tonic": {"type": "string", "description": "The root note of the scale (e.g., 'C', 'Bb')."},
+    "intervals": {"type": "array", "items": {"type": "string"}, "description": "The intervals that define the scale from its tonic (e.g., ['1P', '2M', '3M', '4P', '5P', '6M', '7M'])."}
   },
+  "additionalProperties": false,
   "examples": [
-    {
-      "v": 1,
-      "scaleId": "ionian",
-      "name": "Major (Ionian)",
-      "aliases": [
-        "major"
-      ],
-      "intervals": [
-        "1",
-        "M2",
-        "M3",
-        "P4",
-        "P5",
-        "M6",
-        "M7"
-      ],
-      "diatonic_chords": [
-        {
-          "degree": 1,
-          "quality": "maj",
-          "symbol": "I"
-        },
-        {
-          "degree": 2,
-          "quality": "min",
-          "symbol": "ii"
-        },
-        {
-          "degree": 3,
-          "quality": "min",
-          "symbol": "iii"
-        },
-        {
-          "degree": 4,
-          "quality": "maj",
-          "symbol": "IV"
-        },
-        {
-          "degree": 5,
-          "quality": "maj",
-          "symbol": "V"
-        },
-        {
-          "degree": 6,
-          "quality": "min",
-          "symbol": "vi"
-        },
-        {
-          "degree": 7,
-          "quality": "dim",
-          "symbol": "vii\u00b0"
-        }
-      ]
-    }
+    {"name": "Major", "tonic": "C", "intervals": ["1P", "2M", "3M", "4P", "5P", "6M", "7M"]},
+    {"name": "Dorian", "tonic": "D", "intervals": ["1P", "2M", "3m", "4P", "5P", "6M", "7m"]}
   ]
 }

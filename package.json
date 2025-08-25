@@ -6,8 +6,12 @@
     "apps/*"
   ],
   "scripts": {
-    "proxy:dev": "cd apps/proxy-java && ./gradlew run",
-    "gas:push": "cd apps/gas && clasp push",
+  "proxy:dev": "cd apps/proxy-java && ./gradlew run",
+  "gas:push": "cd apps/gas && clasp push",
     "infra:setup": "bash infra/create_topics.sh"
+  },
+  "devDependencies": {
+    "json-schema-to-typescript": "^15.0.4",
+    "quicktype-core": "^23.2.6"
   }
 }
