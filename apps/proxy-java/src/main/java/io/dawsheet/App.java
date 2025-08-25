@@ -60,6 +60,12 @@ public class App {
             final CountDownLatch ready = new CountDownLatch(1);
             final ProjectSubscriptionName subscriptionName = ProjectSubscriptionName.of(projectId, subId);
 
+            // Capture outer variables as finals for lambda
+            final StatusPublisher spFinal = statusPublisher;
+            final String proxyIdFinal = proxyId;
+            final String statusTopicFinal = statusTopic;
+            final String projectIdFinal = projectId;
+
             MessageReceiver receiver = (message, consumer) -> {
                 String data = message.getData().toStringUtf8();
                 try {
@@ -94,21 +100,21 @@ public class App {
                             log.debug("Unhandled type: {} — ignoring", type);
                     }
 
-                    if (statusPublisher != null && origin != null && !origin.isBlank()) {
-                        publishAckJson(statusPublisher, origin, proxyId, ok, null);
-                    } else if (!statusTopic.isEmpty() && origin != null && !origin.isBlank()) {
+                    if (spFinal != null && origin != null && !origin.isBlank()) {
+                        publishAckJson(spFinal, origin, proxyIdFinal, ok, null);
+                    } else if (!statusTopicFinal.isEmpty() && origin != null && !origin.isBlank()) {
                         // fallback to inline publisher if available
-                        publishAck(projectId, statusTopic, origin, proxyId, ok, null);
+                        publishAck(projectIdFinal, statusTopicFinal, origin, proxyIdFinal, ok, null);
                     }
                     consumer.ack();
                 } catch (Exception ex) {
                     log.error("Failed to process message {}: {}", message.getMessageId(), ex.toString());
-                    if (statusPublisher != null) {
+                    if (spFinal != null) {
                         String origin = safeOrigin(data);
-                        publishAckJson(statusPublisher, origin, proxyId, false, ex.getMessage());
-                    } else if (!statusTopic.isEmpty()) {
+                        publishAckJson(spFinal, origin, proxyIdFinal, false, ex.getMessage());
+                    } else if (!statusTopicFinal.isEmpty()) {
                         String origin = safeOrigin(data);
-                        publishAck(projectId, statusTopic, origin, proxyId, false, ex.getMessage());
+                        publishAck(projectIdFinal, statusTopicFinal, origin, proxyIdFinal, false, ex.getMessage());
                     }
                     consumer.ack(); // avoid redelivery loop for malformed messages
                 }
