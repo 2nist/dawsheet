@@ -1,5 +1,7 @@
 // CommandGenerator.gs
-// Convert a song arrangement into DAWSheet command envelopes (CHORD.PLAY)
+// Convert a song arrangement into DAWSheet command envelopes.
+// For current Java proxy compatibility, we emit NOTE.PLAY commands by default.
+const SONG_CMDS_EMIT_NOTEPLAY = true; // set false to emit CHORD.PLAY once proxy supports it
 
 function songToCommands(songId, targetMidiChannel = '1') {
   loadTonalJs();
@@ -20,14 +22,17 @@ function songToCommands(songId, targetMidiChannel = '1') {
         const beat = (totalBeats % beatsPerBar) + 1;
         const at = `${bar}:${beat}`;
         const info = Tonal.Chord.get(ch.symbol);
-        const payload = {
-          root: info.tonic || ch.symbol.replace(/m|maj|dim|aug|sus|7|9|11|13|add|M|o|\/.*$/,''),
-          quality: info.quality || 'unknown',
-          channel: parseInt(targetMidiChannel) || 1
-        };
+        const rootName = info.tonic || ch.symbol.replace(/m|maj|dim|aug|sus|7|9|11|13|add|M|o|\/.*$/,'');
+        const channel = parseInt(targetMidiChannel) || 1;
+
+        const type = SONG_CMDS_EMIT_NOTEPLAY ? 'NOTE.PLAY' : 'CHORD.PLAY';
+        const payload = SONG_CMDS_EMIT_NOTEPLAY
+          ? { note: `${rootName}4`, velocity: 100, durationSec: 0.4, channel }
+          : { root: rootName, quality: info.quality || 'unknown', channel };
+
         const cmd = {
           v: 1,
-          type: 'CHORD.PLAY',
+          type,
           id: `song-${song.songId}-sec-${section.sectionId}-rep-${r+1}-chord-${idx}`,
           origin: `song://${song.songId}/section/${section.sectionId}/arrangement/${item.arrangementIndex}/repeat/${r+1}`,
           at,
@@ -50,8 +55,20 @@ function songToCommands(songId, targetMidiChannel = '1') {
 
 /** Conceptual publisher (logs + alert) */
 function publishCommands(commands) {
-  console.log('--- Generated Commands ---');
-  console.log(JSON.stringify(commands, null, 2));
-  console.log('--- End Commands ---');
-  SpreadsheetApp.getUi().alert('Commands Generated', 'Commands were generated (see Logs). In a full setup these would be sent to the proxy.', SpreadsheetApp.getUi().ButtonSet.OK);
+  const props = PropertiesService.getScriptProperties();
+  const projectId = props.getProperty('GCP_PROJECT_ID');
+  const topic = props.getProperty('COMMANDS_TOPIC') || 'dawsheet.commands';
+
+  if (projectId) {
+    let ok = 0;
+    commands.forEach(cmd => {
+      try { publish(topic, cmd); ok++; } catch (e) { console.log('Publish failed:', e.message); }
+    });
+    SpreadsheetApp.getUi().alert('Commands Published', `Published ${ok}/${commands.length} command(s) to Pub/Sub topic '${topic}'.`, SpreadsheetApp.getUi().ButtonSet.OK);
+  } else {
+    console.log('--- Generated Commands ---');
+    console.log(JSON.stringify(commands, null, 2));
+    console.log('--- End Commands ---');
+    SpreadsheetApp.getUi().alert('Commands Generated', 'Commands were generated (see Logs). Configure GCP project in Setup to publish to Pub/Sub.', SpreadsheetApp.getUi().ButtonSet.OK);
+  }
 }

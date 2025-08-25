@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DAWSheet — Song Library</title>
+  <base target="_top">
+  <style>
+    body{font:13px system-ui, -apple-system, Segoe UI, Roboto, Arial; margin:0;}
+    header{padding:10px 12px; background:#111827; color:#fff; font-weight:600}
+    main{padding:10px 12px}
+    select,button{font:inherit; padding:6px 8px; margin:4px 0}
+    .row{margin:8px 0}
+    .log{white-space:pre-wrap; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; background:#f9fafb; padding:8px; border:1px solid #e5e7eb}
+  textarea.import{ inline-size:100%; font:12px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; }
+  .mt6{ margin-block-start:6px; }
+  </style>
+</head>
+<body>
+  <header>DAWSheet — Song Library</header>
+  <main>
+    <div class="row">
+      <button onclick="refresh()">Refresh</button>
+    </div>
+    <div class="row">
+      <label for="songSel">Song:</label>
+      <select id="songSel" title="Song selection"></select>
+    </div>
+    <div class="row">
+      <button onclick="sendTimeline()">Send to Timeline</button>
+      <button onclick="loadLive()">Load into Live Set</button>
+    </div>
+    <hr>
+    <div class="row">
+      <details>
+        <summary>Import (JCRD JSON)</summary>
+        <p>Paste external chord JSON (as in attachment) and import into the Song Library.</p>
+  <textarea id="importJson" rows="8" class="import"></textarea>
+  <div class="mt6">
+          <button onclick="importJcrd()">Import JSON</button>
+        </div>
+      </details>
+    </div>
+    <div class="row log" id="log"></div>
+  </main>
+  <script>
+    function log(msg){ document.getElementById('log').textContent = String(msg ?? ''); }
+    function refresh(){
+      google.script.run.withSuccessHandler(list => {
+        const sel = document.getElementById('songSel');
+        sel.innerHTML = '';
+        (list||[]).forEach(it => {
+          const opt = document.createElement('option');
+          opt.value = it.songId; opt.textContent = it.title + ' ('+it.songId+')';
+          sel.appendChild(opt);
+        });
+        log('Loaded ' + (list||[]).length + ' song(s).');
+      }).withFailureHandler(e => log(e.message)).getSongsForSidebar();
+    }
+    function getSelectedId(){ const sel = document.getElementById('songSel'); return sel.value; }
+    function sendTimeline(){
+      const id = getSelectedId(); if (!id) return;
+      google.script.run.withSuccessHandler(msg => log(msg)).withFailureHandler(e => log(e.message)).sendSelectedSongToTimeline(id);
+    }
+    function loadLive(){
+      const id = getSelectedId(); if (!id) return;
+      google.script.run.withSuccessHandler(msg => log(msg)).withFailureHandler(e => log(e.message)).loadSelectedSongIntoLiveSet(id);
+    }
+    function importJcrd(){
+      const txt = document.getElementById('importJson').value;
+      if (!txt.trim()) { log('Paste JSON first.'); return; }
+      google.script.run.withSuccessHandler(msg => { log(msg); refresh(); }).withFailureHandler(e => log(e.message)).importJcrdJson(txt);
+    }
+    document.addEventListener('DOMContentLoaded', refresh);
+  </script>
+</body>
+</html>

@@ -1,0 +1,44 @@
+name: Build MIDI IIFE and open PR
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'tools/midi-bundle/**'
+      - '.github/workflows/midi-bundle.yml'
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  build-midi-iife:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install and build MIDI IIFE
+        working-directory: tools/midi-bundle
+        run: |
+          npm ci || npm i
+          npm run build
+
+      - name: Sync midi-iife.js into Apps Script html
+        run: |
+          node -e "const fs=require('fs');const js=fs.readFileSync('tools/midi-bundle/dist/midi-iife.js','utf8');const wrapped=`<script>\n// --- BEGIN midi-iife.js (generated) ---\n${js}\n// --- END midi-iife.js ---\n<\/script>\n`;fs.writeFileSync('apps/gas/midi_iife.html',wrapped,'utf8');"
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v6
+        with:
+          commit-message: 'chore(importhub): update embedded MIDI IIFE'
+          branch: chore/update-midi-iife
+          title: 'chore(importhub): update embedded MIDI IIFE'
+          body: 'Automated update of apps/gas/midi_iife.html from tools/midi-bundle/dist/midi-iife.js.'
+          signoff: false

@@ -29,6 +29,10 @@ function onOpen(e) {
   try { registerTriggersMenu_(); } catch (_) {}
   // Register optional Validator menu if available
   try { registerValidatorMenu_(); } catch (_) {}
+  // Register optional Utilities menu (Song Library, etc.) if available
+  try { registerUtilitiesMenu_(); } catch (_) {}
+  // Register optional Import menu (Import Hub)
+  try { registerImportMenu_(); } catch (_) {}
 }
 
 /**

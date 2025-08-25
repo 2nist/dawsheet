@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>DAWSheet — Import Hub</title>
+  <?!= HtmlService.createHtmlOutputFromFile('midi_iife').getContent(); ?>
+  <style>
+    body { font: 13px/1.35 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; padding:12px; }
+  .card { border:1px solid #e5e7eb; border-radius:12px; padding:12px; margin-block-end:12px; }
+    .btn { padding:8px 12px; border-radius:8px; border:1px solid #cbd5e1; background:#f8fafc; cursor:pointer; }
+    .btn.primary { background:#2563eb; color:#fff; border-color:#2563eb; }
+    .row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+    .muted { color:#64748b; }
+  input[type=file]{ display:block; margin:8px 0; }
+  .mono { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px; white-space:pre-wrap; background:#f7f7f7; padding:8px; border-radius:8px; max-block-size:180px; overflow:auto; }
+    .stack { display:flex; flex-direction:column; gap:8px; }
+    label.inline { display:flex; align-items:center; gap:6px; }
+  </style>
+  <script>
+    const $ = (sel) => document.querySelector(sel);
+    const status = (m)=>{ const el=$('#status'); if(el) el.textContent=m; };
+
+    let parsed = null;
+
+    // File chooser → parse JSON locally (no require, no modules)
+    document.addEventListener('change', async (e)=>{
+      if (e.target.id !== 'file') return;
+      const file = e.target.files && e.target.files[0];
+      if (!file) return;
+
+      const profile = $('#profile').value;
+      if (profile !== 'isophonics-json') {
+        // leave MIDI/others to your existing handlers
+        // For MIDI, we handle below
+        return;
+      }
+
+      try {
+        const text = await file.text();
+        parsed = JSON.parse(text);
+        $('#preview').textContent = JSON.stringify(parsed.metadata||parsed, null, 2);
+        status('JSON parsed. Ready to import.');
+      } catch (err) {
+        parsed = null;
+        $('#preview').textContent = '';
+        status('Invalid JSON file.');
+        console.error(err);
+      }
+    });
+
+    // Legacy onChange path for MIDI
+    async function onFileChange(e){
+      const file = e.target.files[0];
+      if (!file) return;
+      const profile = $('#profile').value;
+      if (profile === 'isophonics-json') {
+        // handled by document change listener above
+        return;
+      } else if (profile === 'midi') {
+        // Parse MIDI via embedded IIFE exposing window.MidiLib
+        const MidiCtor = window.MidiLib;
+        if (!MidiCtor) {
+          parsed = null;
+          status('MIDI parser not available (embedded script missing).');
+          return;
+        }
+        try {
+          const ab = await file.arrayBuffer();
+          const midi = new MidiCtor(ab);
+          const reduced = {
+            tempos: midi.header && midi.header.tempos || [],
+            timeSignatures: midi.header && midi.header.timeSignatures || [],
+            markers: (midi.header && midi.header.meta || []).filter(m=>m.type==='marker' || m.type==='text').map(m=>({time:m.time, text:m.text})),
+            tracks: (midi.tracks || []).map(t=>({
+              name: t.name,
+              notes: (t.notes || []).map(n=>({ time:n.time, duration:n.duration, midi:n.midi, velocity:n.velocity, channel:n.channel }))
+            }))
+          };
+          parsed = { __kind:'midiReduced', data: reduced };
+          $('#preview').textContent = JSON.stringify({tempos:reduced.tempos, markers:(reduced.markers||[]).map(m=>m.text)}, null, 2);
+        } catch (err) {
+          parsed = null;
+          status('MIDI parsing failed. See console.');
+          console.error(err);
+        }
+      }
+    }
+
+    async function importFromUrl(){
+      const url = $('#url').value.trim(); if (!url) return;
+      $('#status').textContent = 'Fetching…';
+      google.script.run.withSuccessHandler(json => {
+        parsed = json; $('#preview').textContent = JSON.stringify(json.metadata||json, null, 2);
+        $('#status').textContent = 'Loaded';
+      }).withFailureHandler(err => {
+        $('#status').textContent = 'Error: ' + (err && err.message ? err.message : err);
+      }).fetchJsonFromUrl(url);
+    }
+
+    function commit(){
+      if (!parsed) { status('No data to import.'); return; }
+      status('Importing…');
+      const songIdHint = $('#songId')?.value || null;
+      const bpm = $('#bpm')?.value ? Number($('#bpm').value) : null;
+      const ts  = $('#ts')?.value || null;
+      if (parsed.__kind === 'midiReduced') {
+        google.script.run.withSuccessHandler((res)=>{
+          status(res && res.ok ? `Imported: ${res.songId}` : 'Import finished (check sheets).');
+        }).withFailureHandler((err)=>{
+          status('Error: ' + (err && err.message ? err.message : err));
+        }).importMidiJsonToSheets(parsed.data, { songId: songIdHint, overrideBpm: bpm, timeSignature: ts, title: songIdHint || 'Imported MIDI' });
+      } else {
+        google.script.run.withSuccessHandler((res)=>{
+          status(res && res.ok ? `Imported: ${res.songId}` : 'Import finished (check sheets).');
+        }).withFailureHandler((err)=>{
+          status('Error: ' + (err && err.message ? err.message : err));
+        }).importChordJsonToSheets(parsed, songIdHint);
+      }
+    }
+
+    async function gen(){
+      const songIdHint = $('#songId').value || null;
+      if (!songIdHint) { $('#status').textContent = 'Enter a Song ID to generate triggers.'; return; }
+      $('#status').textContent = 'Generating triggers…';
+      google.script.run.withSuccessHandler(res => {
+        if (res && res.ok) {
+          $('#status').textContent = `Generated ${res.wrote} trigger row(s) for ${res.songId}.`;
+        } else {
+          $('#status').textContent = 'Generation finished (check Triggers sheet).';
+        }
+      }).withFailureHandler(fail)
+        .generateTriggersForSong(songIdHint, {});
+    }
+
+    // Optional: URL import button
+    async function importFromUrl(){
+      const url = prompt('Enter JSON URL'); if (!url) return;
+      status('Fetching JSON…');
+      const songIdHint = $('#songId')?.value || null;
+      google.script.run.withSuccessHandler((res)=>{
+        status(res?.ok ? `Imported from URL: ${res.songId}` : 'Import finished (check sheets)');
+      }).withFailureHandler((err)=>{
+        status('Error: ' + (err && err.message ? err.message : err));
+      }).importChordJsonFromUrl(url, songIdHint);
+    }
+
+    // expose to buttons
+    window.commit = commit;
+    window.importFromUrl = importFromUrl;
+  </script>
+  
+</head>
+<body>
+  <div class="card stack">
+    <h3>1) Add Files</h3>
+    <div class="row">
+  <label class="inline" for="profile">Profile:</label>
+  <select id="profile" title="Select import profile">
+        <option value="isophonics-json">Isophonics JSON (.json)</option>
+        <option value="midi">Standard MIDI (.mid)</option>
+      </select>
+  <label class="inline" for="file">Choose file:</label>
+  <input id="file" type="file" title="Pick a file to import" onchange="onFileChange(event)" />
+    </div>
+    <div class="row">
+      <label class="inline">Import from URL: <input id="url" placeholder="https://…/song.json" size="32" /></label>
+      <button class="btn" onclick="importFromUrl()">Fetch</button>
+    </div>
+    <div class="muted">Tip: JSON with metadata.key/tempo/time_signature imports best. URL fetch supports JSON for now.</div>
+  </div>
+
+  <div class="card stack">
+    <h3>2) Map & Preview</h3>
+    <label class="inline">Song ID (optional): <input id="songId" /></label>
+    <label class="inline">BPM override (optional): <input id="bpm" type="number" min="1" step="1"/></label>
+    <label class="inline">Time Signature (optional): <input id="ts" placeholder="4/4"/></label>
+    <div id="preview" class="mono"></div>
+  </div>
+
+  <div class="card">
+    <h3>3) Commit</h3>
+    <button class="btn primary" onclick="commit()">Import to Sheets</button>
+  <button class="btn" onclick="gen()">Generate Triggers from Song</button>
+    <div id="status" class="muted"></div>
+  </div>
+</body>
+</html>

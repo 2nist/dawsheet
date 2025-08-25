@@ -1,0 +1,16 @@
+{
+  "name": "dawsheet-midi-bundle",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "rollup -c"
+  },
+  "dependencies": {
+    "@tonejs/midi": "^2.0.28"
+  },
+  "devDependencies": {
+    "@rollup/plugin-commonjs": "^25.0.7",
+    "@rollup/plugin-node-resolve": "^15.2.3",
+    "rollup": "^4.20.0"
+  }
+}

@@ -2,8 +2,7 @@
 // Sidebar lifecycle and server-side handlers for UI actions
 
 function showSongLibrarySidebar() {
-  const html = HtmlService.createTemplateFromFile('index')
-    .evaluate()
+  const html = HtmlService.createHtmlOutputFromFile('songlibrary/index')
     .setTitle('DAWSheet Song Library')
     .setWidth(300);
   SpreadsheetApp.getUi().showSidebar(html);
