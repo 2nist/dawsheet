@@ -18,19 +18,29 @@ const files = ['commands.schema.json','song.schema.json','chord.schema.json','sc
   .map(f => path.join(SPEC_DIR, f))
   .filter(p => fs.existsSync(p));
 
-const header = `// Generated from JSON Schemas. Do not edit by hand.\n`;
-const timestamp = new Date().toISOString();
 
-let ts = header + `// Generated: ${timestamp}\n`;
-for (const f of files) ts += `// ${f}\n`;
-ts += `\nexport type Json = unknown;\n`;
-fs.writeFileSync(OUT_TS, ts, 'utf8');
+import { compileFromFile } from 'json-schema-to-typescript';
 
-const classNames = ['Commands','Song','Chord','Scale'];
-for (const name of classNames) {
-  const p = path.join(OUT_JAVA_DIR, name + '.java');
-  const java = `// Generated placeholder. Do not edit by hand.\npackage io.dawsheet.model;\npublic class ${name} { }\n`;
-  fs.writeFileSync(p, java, 'utf8');
+import { execSync } from 'node:child_process';
+
+async function generateTypes() {
+  // TypeScript generation
+  let ts = '// Generated from JSON Schemas. Do not edit by hand.\n';
+  ts += `// Generated: ${new Date().toISOString()}\n`;
+  for (const f of files) {
+    ts += `// ${f}\n`;
+    ts += await compileFromFile(f, { bannerComment: '' });
+    ts += '\n';
+  }
+  fs.writeFileSync(OUT_TS, ts, 'utf8');
+
+  // Java generation (via CLI)
+  for (const f of files) {
+    const schemaName = path.basename(f, '.schema.json');
+    const outPath = path.join(OUT_JAVA_DIR, `${schemaName.charAt(0).toUpperCase() + schemaName.slice(1)}.java`);
+    execSync(`npx quicktype --lang java --package io.dawsheet.model --top-level ${schemaName.charAt(0).toUpperCase() + schemaName.slice(1)} -o "${outPath}" "${f}"`, { stdio: 'inherit' });
+  }
+  console.log('Generated TypeScript and Java files from JSON Schemas.');
 }
 
-console.log('Generated placeholder TS and Java files. Replace with real codegen ASAP.');
+generateTypes();

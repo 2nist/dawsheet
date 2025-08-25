@@ -1,0 +1,13 @@
+# config.yaml
+
+# OSC settings for the REAPER bridge
+osc_ip: '127.0.0.1' # IP address of REAPER's OSC listener
+osc_port: 9000      # Port REAPER is listening on
+
+# Flask server settings for the bridge
+bridge_bind: '127.0.0.1' # IP address for the Flask server to bind to
+bridge_port: 5000        # Port for the Flask server to listen on
+
+# Optional shared secret for basic security
+# Set a strong value when exposing beyond localhost
+shared_secret: ''

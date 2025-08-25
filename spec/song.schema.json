@@ -3,10 +3,11 @@
   "$id": "https://dawsheet.dev/spec/song.schema.json",
   "title": "DAWSheet Song Object v1",
   "type": "object",
-  "required": ["v","meta","sections","arrangement"],
+  "required": ["v", "songId", "meta", "sections", "arrangement"],
   "additionalProperties": false,
   "properties": {
     "v": {"const": 1},
+    "songId": {"type": "string", "description": "Unique identifier for the song, typically derived from the sheet row."},
     "meta": {
       "type": "object",
       "required": ["title","bpm","key"],
@@ -39,50 +40,55 @@
   "$defs": {
     "section": {
       "type":"object",
-      "required": ["name","length_bars"],
+      "required": ["sectionId","sectionName","lengthBars"],
       "properties": {
-        "name":{"type":"string","description":"Verse, Chorus, Bridge, etc."},
-        "length_bars":{"type":"number","minimum":0},
+        "sectionId":{"type":"string","description":"Unique ID for this section within a song."},
+        "sectionName":{"type":"string","description":"Verse, Chorus, Bridge, etc."},
+        "lengthBars":{"type":"number","minimum":0},
         "chords":{"type":"array","items":{"$ref":"#/$defs/chord"}},
-        "lyrics_ref":{"type":"string"},
+        "lyricsRef":{"type":"string"},
         "notes":{"type":"string"}
       },
       "additionalProperties": true
     },
     "chord": {
       "type":"object",
-      "required":["symbol"],
+      "required":["symbol","beats"],
       "properties": {
-        "symbol":{"type":"string","description":"e.g., Dm7, G7, Cmaj7"},
+        "symbol":{"type":"string","description":"The symbolic representation of the chord (e.g., Cmaj7, Dm)."},
         "beats":{"type":"number","minimum":0.25},
         "roman":{"type":"string","description":"optional roman numeral"},
-        "scale":{"type":"string","description":"optional scale/mode hint"}
+        "scale":{"type":"string","description":"optional scale/mode hint"},
+        "notes": {"type": "array", "items": {"type": "string"}, "description": "Optional: Specific notes making up the chord (e.g., for detected chords)."},
+        "quality": {"type": "string", "description": "Optional: Detected or specified chord quality (e.g., major, minor, dominant, diminished)."}
       },
       "additionalProperties": false
     },
     "arrangementItem": {
       "type":"object",
-      "required":["section","start_bar"],
+      "required":["arrangementIndex","sectionId","startBar"],
       "properties": {
-        "section":{"type":"string","description":"name must match a section.name"},
-        "start_bar":{"type":"number","minimum":1},
+        "arrangementIndex":{"type":"number","minimum":1},
+        "sectionId":{"type":"string","description":"ID must match a section.sectionId"},
+        "startBar":{"type":"number","minimum":1},
         "repeat":{"type":"integer","minimum":1,"default":1},
-        "scene_ref":{"type":"string","description":"optional DAWSheet scene id"},
-        "macro_ref":{"type":"string","description":"optional DAWSheet macro id"}
+        "sceneRef":{"type":"string","description":"optional DAWSheet scene id"},
+        "macroRef":{"type":"string","description":"optional DAWSheet macro id"}
       },
       "additionalProperties": false
     }
   },
   "examples": [{
     "v":1,
+    "songId": "example-song-001",
     "meta":{"title":"Demo Song","artist":"You","bpm":100,"key":"D","mode":"Dorian","timeSignature":"4/4","tags":["demo"]},
     "sections":[
-      {"name":"Verse","length_bars":8,"chords":[{"symbol":"Dm7","beats":4},{"symbol":"G7","beats":4}]},
-      {"name":"Chorus","length_bars":8,"chords":[{"symbol":"Cmaj7","beats":8}]}
+      {"sectionId": "verse-a", "name":"Verse","lengthBars":8,"chords":[{"symbol":"Dm7","beats":4},{"symbol":"G7","beats":4}]},
+      {"sectionId": "chorus-a", "name":"Chorus","lengthBars":8,"chords":[{"symbol":"Cmaj7","beats":8}]}
     ],
     "arrangement":[
-      {"section":"Verse","start_bar":1},
-      {"section":"Chorus","start_bar":9,"repeat":2}
+      {"arrangementIndex":1,"sectionId":"verse-a","startBar":1},
+      {"arrangementIndex":2,"sectionId":"chorus-a","startBar":9,"repeat":2}
     ],
     "commands_ref":["scene:intro","macro:buildA"]
   }]
