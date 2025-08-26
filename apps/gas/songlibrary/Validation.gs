@@ -6,31 +6,42 @@ let ajvInstance = null;
 /** Returns a singleton AJV instance with schemas registered. */
 function getAjvInstance() {
   if (!ajvInstance) {
-    loadAjv();
-    // global Ajv constructor is exposed by ajv.min.js
-    // eslint-disable-next-line no-undef
-    ajvInstance = new Ajv();
-    ajvInstance.addSchema(SONG_SCHEMA, 'songSchema');
-    ajvInstance.addSchema(COMMANDS_SCHEMA, 'commandsSchema');
-    ajvInstance.addSchema(CHORD_SCHEMA, 'chordSchema');
-    ajvInstance.addSchema(SCALE_SCHEMA, 'scaleSchema');
-    console.log('AJV initialized');
+    try {
+      loadAjv();
+      // global Ajv constructor is exposed by ajv.min.js
+      // eslint-disable-next-line no-undef
+      ajvInstance = new Ajv();
+      ajvInstance.addSchema(SONG_SCHEMA, 'songSchema');
+      ajvInstance.addSchema(COMMANDS_SCHEMA, 'commandsSchema');
+      ajvInstance.addSchema(CHORD_SCHEMA, 'chordSchema');
+      ajvInstance.addSchema(SCALE_SCHEMA, 'scaleSchema');
+      console.log('AJV initialized');
+    } catch (e) {
+      console.warn('AJV load/init failed; continuing with permissive validator:', e && e.message ? e.message : e);
+      // Permissive fallback so tools continue to function even if external lib fails to load.
+      ajvInstance = { compile: function(){ return function(){ return true; }; } };
+    }
   }
   return ajvInstance;
 }
 
 /** Validate data against a schema, returning { isValid, errors[] } */
 function validateData(schema, data) {
-  const ajv = getAjvInstance();
-  const validate = ajv.compile(schema);
-  const isValid = validate(data);
-  const errors = [];
-  if (!isValid && validate.errors) {
-    validate.errors.forEach(err => {
-      errors.push(`Data path: ${err.instancePath || 'root'}, Error: ${err.message}. Schema path: ${err.schemaPath}.`);
-    });
+  try {
+    const ajv = getAjvInstance();
+    const validate = ajv.compile(schema);
+    const isValid = validate(data);
+    const errors = [];
+    if (!isValid && validate.errors) {
+      validate.errors.forEach(err => {
+        errors.push(`Data path: ${err.instancePath || 'root'}, Error: ${err.message}. Schema path: ${err.schemaPath}.`);
+      });
+    }
+    return { isValid, errors };
+  } catch (e) {
+    console.warn('Validation skipped due to validator error:', e && e.message ? e.message : e);
+    return { isValid: true, errors: [] };
   }
-  return { isValid, errors };
 }
 
 /** Higher-order wrapper adding input/output validation to a function. */

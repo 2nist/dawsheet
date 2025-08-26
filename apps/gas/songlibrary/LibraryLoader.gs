@@ -10,16 +10,24 @@
 function loadScript(url, cacheKey) {
   const cache = CacheService.getScriptCache();
   let scriptContent = cache.get(cacheKey);
-  if (!scriptContent) {
-    console.log(`Loading ${cacheKey} from URL: ${url}`);
-    const response = UrlFetchApp.fetch(url);
-    scriptContent = response.getContentText();
-    cache.put(cacheKey, scriptContent, 3600);
-    console.log(`${cacheKey} loaded and cached.`);
-  } else {
-    console.log(`${cacheKey} retrieved from cache.`);
+  if (scriptContent) {
+    console.log(`${cacheKey} retrieved from cache (len=${scriptContent.length}).`);
+    return scriptContent;
   }
-  return scriptContent;
+  console.log(`Loading ${cacheKey} from URL: ${url}`);
+  const response = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+  const code = response.getContentText();
+  if (!code || response.getResponseCode() >= 400) {
+    throw new Error(`Failed to load ${cacheKey} (${response.getResponseCode()})`);
+  }
+  // Only cache if below approx 90KB to avoid CacheService truncation (100KB limit)
+  if (code.length < 90000) {
+    cache.put(cacheKey, code, 3600);
+    console.log(`${cacheKey} cached (len=${code.length}).`);
+  } else {
+    console.log(`${cacheKey} not cached due to size (len=${code.length}).`);
+  }
+  return code;
 }
 
 /**
@@ -44,6 +52,32 @@ function loadTonalJs() {
 
 /** Loads and exposes AJV globally. */
 function loadAjv() {
-  const ajvUrl = 'https://cdn.jsdelivr.net/npm/ajv@8.6.0/dist/ajv.min.js';
-  evaluateScript(loadScript(ajvUrl, 'ajvJs'), 'Ajv');
+  const ajv8Url = 'https://cdn.jsdelivr.net/npm/ajv@8.6.0/dist/ajv.min.js';
+  try {
+    evaluateScript(loadScript(ajv8Url, 'ajvJs'), 'Ajv');
+  } catch (e1) {
+    // Clear cache and retry once with v8
+    const cache = CacheService.getScriptCache();
+    try { if (cache.remove) cache.remove('ajvJs'); } catch(_) {}
+    try {
+      evaluateScript(loadScript(ajv8Url, 'ajvJs'), 'Ajv');
+      return;
+    } catch (e2) {
+      console.warn('AJV v8 load failed, falling back to v6:', e2 && e2.message ? e2.message : e2);
+      const ajv6Url = 'https://cdn.jsdelivr.net/npm/ajv@6.12.6/dist/ajv.min.js';
+      evaluateScript(loadScript(ajv6Url, 'ajv6Js'), 'Ajv');
+    }
+  }
+}
+
+/** Clears cached external libraries (AJV/Tonal) */
+function libraryClearCache() {
+  const cache = CacheService.getScriptCache();
+  if (cache.removeAll) {
+    cache.removeAll(['ajvJs','tonalJs']);
+  } else {
+    try { cache.remove('ajvJs'); } catch(_) {}
+    try { cache.remove('tonalJs'); } catch(_) {}
+  }
+  return 'Library cache cleared.';
 }
