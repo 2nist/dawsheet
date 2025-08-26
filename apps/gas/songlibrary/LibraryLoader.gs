@@ -34,13 +34,31 @@ function loadScript(url, cacheKey) {
   return scriptContent;
 }
 
+/**
+ * Load a JavaScript file from URL with relaxed caching threshold (supports larger libs).
+ * Avoids CacheService truncation by only caching when comfortably small (< ~800KB for safety).
+ */
+function loadScript_(url, cacheKey) {
+  const cache = CacheService.getScriptCache();
+  let s = cacheKey ? cache.get(cacheKey) : null;
+  if (!s) {
+    const resp = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    if (resp.getResponseCode() >= 400) throw new Error('Fetch failed ' + resp.getResponseCode() + ' for ' + url);
+    s = resp.getContentText();
+    if (cacheKey && s && s.length < 800000) {
+      cache.put(cacheKey, s, 3600);
+    }
+  }
+  return s;
+}
+
 /** Try multiple URLs, returning the first successfully loaded script; logs failures. */
 function loadScriptFromAny(urls, cacheKey) {
   var lastErr = null;
   for (var i = 0; i < urls.length; i++) {
     var u = urls[i];
     try {
-      return loadScript(u, cacheKey);
+  return loadScript_(u, cacheKey);
     } catch (e) {
       lastErr = e;
       console.log(`loadScriptFromAny: failed ${u}: ${e && e.message ? e.message : e}`);
@@ -118,30 +136,131 @@ function evaluateScriptPreferGlobal(scriptContent, desiredGlobalName) {
   evaluateScriptWithCjsShim(scriptContent, desiredGlobalName);
 }
 
+/** Evaluate 3p browser bundles safely (no require/module/define paths). */
+function safeEvalGlobal_(name, src) {
+  // Pre-stub Node/AMD globals so UMD never tries to call real require()
+  var require = function(){ return {}; };           // prevent ReferenceError
+  var module = { exports: {} };                     // harmless module object
+  var exports = module.exports;                     // common pattern
+  var define = undefined;                           // no AMD
+  try {
+    // eslint-disable-next-line no-eval
+    eval(String(src || ''));
+  } catch (e) {
+    throw new Error('safeEvalGlobal_ failed for '+name+': '+((e && e.message) || e));
+  }
+}
+
+/** Evaluate a browser bundle so it can attach to global (window/self/global). */
+function evalAsBrowserGlobal_(name, src) {
+  try {
+  var wrapper = '(function(){var window=this,self=this,global=this,globalThis=this;\n' +
+          'var exports = (typeof exports!=="undefined"?exports:{}); var define=undefined; var require=undefined;\n' +
+          String(src || '') + '\n}).call(this)';
+    // eslint-disable-next-line no-eval
+    eval(wrapper);
+  } catch (e) {
+    throw new Error('evalAsBrowserGlobal_ failed for ' + name + ': ' + ((e && e.message) || e));
+  }
+}
+
 /** Loads and exposes Tonal.js globally. */
 function loadTonalJs() {
-  const tonalUrl = 'https://cdn.jsdelivr.net/npm/@tonaljs/tonal/browser/tonal.min.js';
-  // Tonal's browser bundle is UMD; ensure no CJS refs blow up
-  evaluateScriptPreferGlobal(loadScript(tonalUrl, 'tonalJs.v1'), 'Tonal');
+  var gT = (typeof globalThis !== 'undefined') ? globalThis : this;
+  var tried = [];
+  function promoteTonal_(){
+    if (typeof gT.Tonal !== 'undefined') return true;
+    if (typeof gT.tonal !== 'undefined') { gT.Tonal = gT.tonal; }
+    return typeof gT.Tonal !== 'undefined';
+  }
+  function tryEvalList_(urls, label){
+    for (var i=0;i<urls.length;i++){
+      var u = urls[i];
+      try {
+        var src = loadScript_(u, null);
+        evalAsBrowserGlobal_(label, src);
+        if (promoteTonal_()) return true;
+      } catch (e) {
+        tried.push(label + ' ' + u + ' -> ' + ((e && e.message) || e));
+      }
+    }
+    return promoteTonal_();
+  }
+  var paths = [
+    // jsDelivr pinned 4.x
+    'https://cdn.jsdelivr.net/npm/@tonaljs/tonal@4.10.0/browser/tonal.min.js',
+    'https://cdn.jsdelivr.net/npm/@tonaljs/tonal@4.10.0/dist/tonal.min.js',
+    'https://cdn.jsdelivr.net/npm/@tonaljs/tonal@4.9.0/browser/tonal.min.js',
+    'https://cdn.jsdelivr.net/npm/@tonaljs/tonal@4.9.0/dist/tonal.min.js',
+    // generic 4.x latest
+    'https://cdn.jsdelivr.net/npm/@tonaljs/tonal@4/browser/tonal.min.js',
+    'https://cdn.jsdelivr.net/npm/@tonaljs/tonal@4/dist/tonal.min.js',
+    // older tonal package (pre-split)
+    'https://cdn.jsdelivr.net/npm/tonal@3.6.0/build/tonal.min.js'
+  ];
+  if (!tryEvalList_(paths, 'Tonal')) {
+    // Final fallback: inline minimal Tonal IIFE shipped with the project
+    try {
+      var html = HtmlService.createHtmlOutputFromFile('tonal_iife').getContent();
+      // Extract inner script content if wrapped
+      var m = html.match(/<script[^>]*>([\s\S]*?)<\/script>/i);
+      var srcInline = m ? m[1] : html;
+      evalAsBrowserGlobal_('Tonal(inline)', srcInline);
+      if (!promoteTonal_()) throw new Error('inline fallback did not attach Tonal');
+    } catch (e) {
+      tried.push('inline fallback -> ' + ((e && e.message) || e));
+      throw new Error('Tonal not on global after eval; tried: ' + tried.join(' | '));
+    }
+  }
 }
 
 /** Loads and exposes AJV globally. */
 function loadAjv() {
-  // Prefer a jsDelivr UMD build with a healthy mirror; fall back to older versions/CDNJS if needed
-  const ajvUrls = [
+  var gA = (typeof globalThis !== 'undefined') ? globalThis : this;
+  var tried = [];
+  function promoteAjv_() {
+    if (typeof gA.Ajv !== 'undefined') return true;
+    if (typeof gA.ajv !== 'undefined') {
+      var mod = gA.ajv;
+      gA.Ajv = (mod && (mod.default || mod.Ajv)) ? (mod.default || mod.Ajv) : mod;
+    }
+    if (typeof gA.Ajv === 'undefined' && typeof gA.Ajv2020 !== 'undefined') {
+      gA.Ajv = gA.Ajv2020;
+    }
+    return typeof gA.Ajv !== 'undefined';
+  }
+  function tryEvalList_(urls, label){
+    for (var i=0;i<urls.length;i++){
+      var u = urls[i];
+      try {
+        var src = loadScript_(u, null); // avoid caching failed variant
+        evalAsBrowserGlobal_(label, src);
+        if (promoteAjv_()) return true;
+      } catch (e) {
+        tried.push(label + ' ' + u + ' -> ' + ((e && e.message) || e));
+      }
+    }
+    return promoteAjv_();
+  }
+  var v8 = [
     'https://cdn.jsdelivr.net/npm/ajv@8.12.0/dist/ajv.min.js',
-    'https://cdn.jsdelivr.net/npm/ajv@8.6.0/dist/ajv.min.js',
-    'https://cdnjs.cloudflare.com/ajax/libs/ajv/8.6.0/ajv.min.js'
+    'https://cdnjs.cloudflare.com/ajax/libs/ajv/8.12.0/ajv.min.js'
   ];
-  // Avoid cache for large file; bump cache key to v3 to skip any stale entries
-  evaluateScriptPreferGlobal(loadScriptFromAny(ajvUrls, 'ajvJs.v3'), 'Ajv');
+  var v6 = [
+    'https://cdn.jsdelivr.net/npm/ajv@6.12.6/dist/ajv.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/ajv/6.12.6/ajv.min.js'
+  ];
+  if (!tryEvalList_(v8, 'Ajv v8')) {
+    tryEvalList_(v6, 'Ajv v6');
+  }
+  if (typeof gA.Ajv === 'undefined') throw new Error('Ajv not on global after eval; tried: ' + tried.join(' | '));
 }
 
 /** Utility to clear cached library entries in case of corruption/truncation. */
 function clearLibraryLoaderCache() {
   try {
     const cache = CacheService.getScriptCache();
-    ['ajvJs', 'ajvJs.v2', 'tonalJs', 'tonalJs.v1'].forEach(k => {
+  ['ajvJs', 'ajvJs.v2', 'ajvJs.v3', 'ajvJs.v4', 'ajvJs.v5', 'ajvJs.v6', 'ajvJs.v6.1', 'ajvJs.v7', 'ajvJs.v8', 'tonalJs', 'tonalJs.v1', 'tonalJs.v2', 'tonalJs.v3', 'tonalJs.v4'].forEach(k => {
       try { cache.remove(k); } catch (e) {}
     });
     console.log('LibraryLoader cache cleared for ajv/tonal keys.');

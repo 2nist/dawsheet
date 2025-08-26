@@ -28,10 +28,17 @@ function midiReducedToSong_(midi, opts){
 
   // Chord detection (bar buckets)
   loadTonalJs();
+  function midiToNoteName_(n) {
+    // 0=C-1 per MIDI standard
+    const N = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+    const note = N[Math.floor(n % 12)];
+    const octave = Math.floor(n / 12) - 1;
+    return note + String(octave);
+  }
   const chordAt = (notes) => {
     // notes array of MIDI or names; try mapping through Tonal
     const pcs = Array.from(new Set(notes.map(n=>{
-      if (typeof n === 'number') return Tonal.Midi.midiToNoteName ? Tonal.Midi.midiToNoteName(n) : ('M'+n);
+      if (typeof n === 'number') return midiToNoteName_(n);
       return Tonal.Note.pc(n);
     }).map(name => Tonal.Note.pc(name))));
     const det = Tonal.Chord.detect(pcs);

@@ -20,6 +20,7 @@ function registerUtilitiesMenu_(){
   // Tools
   menu.addSeparator();
   menu.addItem('Clear Lib Cache (AJV/Tonal)', 'util_clearLibCache');
+  menu.addItem('Lib Self-Test (AJV/Tonal)', 'util_libSelfTest');
 
   menu.addToUi();
 }
@@ -108,4 +109,22 @@ function util_clearLibCache(){
       ui.alert('Utilities', 'Cache clear function not found.', ui.ButtonSet.OK);
     }
   } catch(e){ ui.alert('Utilities', 'Error clearing cache: ' + e.message, ui.ButtonSet.OK); }
+}
+
+function util_libSelfTest(){
+  const ui = SpreadsheetApp.getUi();
+  try {
+    // Try loading libs
+  var ajvErr = null, tonalErr = null;
+  try { loadAjv(); } catch (e) { ajvErr = e && e.message ? e.message : String(e); }
+  try { loadTonalJs(); } catch (e) { tonalErr = e && e.message ? e.message : String(e); }
+  var ajvType = typeof Ajv;
+  var tonalType = typeof Tonal;
+  var keys = Object.keys(this || {}).filter(k => /ajv|tonal/i.test(k)).slice(0, 10);
+  var msg = 'typeof Ajv: ' + ajvType + (ajvErr ? ' (loader: ' + ajvErr + ')' : '') + '\n' +
+        'typeof Tonal: ' + tonalType + (tonalErr ? ' (loader: ' + tonalErr + ')' : '') + '\n' +
+        'Visible globals (ajv/tonal): ' + (keys.join(', ') || '[none]') + '\n' +
+        'Note: If types look wrong, use Clear Lib Cache and reload.';
+    ui.alert('Lib Self-Test', msg, ui.ButtonSet.OK);
+  } catch(e){ ui.alert('Lib Self-Test Error', e.message, ui.ButtonSet.OK); }
 }

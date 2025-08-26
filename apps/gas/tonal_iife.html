@@ -1,0 +1,71 @@
+<script>
+(function(global){
+  'use strict';
+  var NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  var FLAT_TO_SHARP = { 'Db':'C#','Eb':'D#','Gb':'F#','Ab':'G#','Bb':'A#' };
+  function midiToNoteName(n){
+    var note = NAMES[((n%12)+12)%12];
+    var octave = Math.floor(n/12) - 1;
+    return note + String(octave);
+  }
+  function normalizeName(name){
+    var s = String(name||'').trim();
+    if (!s) return '';
+    s = s.replace(/([a-gA-G])([#b]?)/, function(_,l,acc){
+      var L = l.toUpperCase();
+      var root = L + (acc||'');
+      root = FLAT_TO_SHARP[root] || root;
+      return root;
+    });
+    var m = s.match(/^([A-G](?:#|b)?)/);
+    return m ? (FLAT_TO_SHARP[m[1]] || m[1]) : '';
+  }
+  function pcVal(pc){ return NAMES.indexOf(pc); }
+  function intervalsOf(pcs, rootVal){
+    var set = {};
+    for (var i=0;i<pcs.length;i++){
+      var v = pcVal(pcs[i]); if (v<0) continue;
+      var iv = (v - rootVal + 12) % 12;
+      set[iv] = true;
+    }
+    return set;
+  }
+  function matchChord(set){
+    function has(i){ return !!set[i]; }
+    if (has(0) && has(4) && has(7) && has(11)) return 'maj7';
+    if (has(0) && has(4) && has(7) && has(10)) return '7';
+    if (has(0) && has(3) && has(7) && has(10)) return 'm7';
+    if (has(0) && has(3) && has(6) && has(10)) return 'm7b5';
+    if (has(0) && has(3) && has(6) && has(9)) return 'dim7';
+    if (has(0) && has(4) && has(7)) return '';
+    if (has(0) && has(3) && has(7)) return 'm';
+    if (has(0) && has(3) && has(6)) return 'dim';
+    if (has(0) && has(4) && has(8)) return 'aug';
+    return null;
+  }
+  function detectSymbol(pcs){
+    for (var r=0;r<12;r++){
+      var set = intervalsOf(pcs, r);
+      var qual = matchChord(set);
+      if (qual !== null) return NAMES[r] + qual;
+    }
+    return 'N.C.';
+  }
+  var Note = {
+    pc: function(x){ if (typeof x === 'number') return normalizeName(midiToNoteName(x)); return normalizeName(x); }
+  };
+  var Chord = {
+    detect: function(arr){
+      var pcs = [];
+      for (var i=0;i<arr.length;i++){
+        var a = arr[i];
+        var pc = (typeof a === 'number') ? Note.pc(a) : normalizeName(a);
+        if (pc && pcs.indexOf(pc) === -1) pcs.push(pc);
+      }
+      var sym = detectSymbol(pcs);
+      return sym === 'N.C.' ? [] : [sym];
+    }
+  };
+  global.Tonal = { Note: Note, Chord: Chord };
+})(this);
+</script>

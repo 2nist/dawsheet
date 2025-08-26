@@ -18,6 +18,8 @@
     label.inline { display:flex; align-items:center; gap:6px; }
   </style>
   <script>
+  // Stabilize a reference to the embedded MIDI library (IIFE exposes window.MidiLib)
+  window.__DAW_MIDI_LIB__ = window.MidiLib || null;
     const $ = (sel) => document.querySelector(sel);
     const status = (m)=>{ const el=$('#status'); if(el) el.textContent=m; };
 
@@ -59,7 +61,7 @@
         return;
       } else if (profile === 'midi') {
         // Parse MIDI via embedded IIFE exposing window.MidiLib
-        const MidiCtor = window.MidiLib;
+  const MidiCtor = window.__DAW_MIDI_LIB__ || window.MidiLib;
         if (!MidiCtor) {
           parsed = null;
           status('MIDI parser not available (embedded script missing).');

@@ -16,6 +16,7 @@ function onOpen(e) {
     .addItem('Send Note from Selection', 'sendNoteFromSelection')
     .addSeparator()
   .addItem('Welcome Sidebar', 'openWelcomeSidebar')
+  .addItem('Open Command Center', 'ui_openCommandCenter')
     .addSeparator()
   .addItem('Insert Routing Matrix', 'insertRoutingMatrix')
   .addItem('Show Compiled Routes', 'showCompiledRoutes')
@@ -33,6 +34,15 @@ function onOpen(e) {
   try { registerUtilitiesMenu_(); } catch (_) {}
   // Register optional Import menu (Import Hub)
   try { registerImportMenu_(); } catch (_) {}
+}
+
+// Command Center launcher
+function ui_openCommandCenter() {
+  const html = HtmlService.createTemplateFromFile('CommandCenterUI')
+    .evaluate()
+    .setTitle('DAWSheet — Command Center')
+    .setWidth(380);
+  SpreadsheetApp.getUi().showSidebar(html);
 }
 
 /**
