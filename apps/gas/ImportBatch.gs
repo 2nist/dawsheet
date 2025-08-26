@@ -74,16 +74,93 @@ function inferSongMetaFromJson_(obj, hint){
   return { title, bpm, key };
 }
 function inferSectionsFromJson_(obj){
-  const chords = Array.isArray(obj.chords) ? obj.chords : [];
-  const sec = {
-    sectionId:'A', sectionName:'Section A',
-    lengthBars: Math.max(1, Math.ceil((chords.reduce(function(sum,c){return sum+(c.beats||4);},0))/4)),
-    chords: chords.length ? chords : [{ symbol:'C', beats:4 }]
-  };
-  return [sec];
+  // Try several shapes: {sections:[{name,chords:[]},...]}, {sectionMap:{name:[]}, arrangement:[names]}, {chords:[]}
+  // 1) sections array with chords
+  if (Array.isArray(obj.sections)) {
+    var secs = [];
+    var letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    for (var i=0;i<obj.sections.length;i++){
+      var s = obj.sections[i] || {};
+      var chordsArr = parseChordsArray_(s.chords || s.chord || s.progression || []);
+      if (!chordsArr.length) continue;
+      var lenBars = Math.max(1, Math.ceil(chordsArr.reduce(function(sum,c){return sum+(c.beats||4);},0)/4));
+      var secId = i < letters.length ? letters[i] : ('S'+(i+1));
+      secs.push({ sectionId: secId, sectionName: String(s.name || s.title || ('Section '+secId)), lengthBars: lenBars, chords: chordsArr });
+    }
+    if (secs.length) return secs;
+  }
+  // 2) section map + arrangement
+  var map = obj.sectionMap || obj.sectionsMap || obj.parts || null;
+  var arr = obj.arrangement || obj.structure || obj.form || null;
+  if (map && arr && (Array.isArray(arr))){
+    var out = [],
+        idByName = {},
+        letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    var idx = 0;
+    // Build sections in first-appearance order
+    arr.forEach(function(ref){
+      var name = (ref && (ref.name || ref.id || ref.section || ref.ref)) || String(ref);
+      if (!name || idByName[name]) return;
+      var chordList = parseChordsArray_(map[name] || []);
+      if (!chordList.length) return;
+      var lenBars = Math.max(1, Math.ceil(chordList.reduce(function(sum,c){return sum+(c.beats||4);},0)/4));
+      var secId = idx < letters.length ? letters[idx] : ('S'+(idx+1));
+      idByName[name] = secId;
+      out.push({ sectionId: secId, sectionName: String(name), lengthBars: lenBars, chords: chordList });
+      idx++;
+    });
+    if (out.length) return out;
+  }
+  // 3) flat chords
+  var chords = parseChordsArray_(obj.chords || []);
+  if (chords.length){
+    return [{ sectionId:'A', sectionName:'Section A', lengthBars: Math.max(1, Math.ceil(chords.reduce(function(sum,c){return sum+(c.beats||4);},0)/4)), chords: chords }];
+  }
+  // default fallback single bar C
+  return [{ sectionId:'A', sectionName:'Section A', lengthBars:1, chords:[{ symbol:'C', beats:4 }] }];
 }
+
 function inferArrangementFromJson_(obj, sections){
-  return [{ arrangementIndex:1, sectionId:sections[0].sectionId, startBar:1, repeat:1 }];
+  var arr = obj.arrangement || obj.structure || obj.form || null;
+  var index = 1, start = 1, out = [];
+  if (Array.isArray(arr)){
+    // If arr contains names/ids, map to first matching section
+    arr.forEach(function(ref){
+      var name = (ref && (ref.name || ref.id || ref.section || ref.ref)) || String(ref);
+      var sec = sections.find(function(s){ return s.sectionName === name || s.sectionId === name; });
+      if (!sec) return;
+      out.push({ arrangementIndex:index++, sectionId: sec.sectionId, startBar: start, repeat: (ref && ref.repeat) || 1 });
+      start += sec.lengthBars * ((ref && ref.repeat) || 1);
+    });
+  }
+  if (!out.length){
+    // default: chain sections once each
+    sections.forEach(function(sec){
+      out.push({ arrangementIndex:index++, sectionId: sec.sectionId, startBar: start, repeat:1 });
+      start += sec.lengthBars;
+    });
+  }
+  return out;
+}
+
+function parseChordsArray_(list){
+  var out = [];
+  if (!Array.isArray(list)) return out;
+  list.forEach(function(item){
+    if (item == null) return;
+    if (typeof item === 'string'){
+      // Accept formats: "C", "C:4", "Cmaj7", trim and optional beats after ':'
+      var m = String(item).trim().match(/^([^:]+)(?::(\d+(?:\.\d+)?))?$/);
+      if (m){ out.push({ symbol: m[1].trim(), beats: m[2] ? Number(m[2]) : 4 }); }
+      return;
+    }
+    if (typeof item === 'object'){
+      var sym = item.symbol || item.chord || item.name || item.roman || 'C';
+      var beats = item.beats != null ? Number(item.beats) : (item.durationBeats != null ? Number(item.durationBeats) : (item.len || 4));
+      out.push({ symbol: String(sym), beats: beats });
+    }
+  });
+  return out;
 }
 
 /** Unsafe writer that bypasses schema validation (used as fallback). */
