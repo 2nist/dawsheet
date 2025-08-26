@@ -138,3 +138,22 @@ function saveSongUnsafe_(songData) {
   });
   setSheetData('Arrangements', arr, arrangementHeaders);
 }
+
+/** Server-side tolerant JSON parse, returns object or throws. */
+function importChordJsonRaw(jsonText, songIdHint){
+  var text = String(jsonText||'');
+  try {
+    return importChordJsonToSheets(JSON.parse(text), songIdHint);
+  } catch(e1) {
+    // cleanup and retry
+    try {
+      var cleaned = text.replace(/^\uFEFF/, '')
+                        .replace(/\/\*[\s\S]*?\*\//g, '')
+                        .replace(/(^|[^:\\])\/\/.*$/gm, '$1')
+                        .replace(/,\s*([}\]])/g, '$1');
+      return importChordJsonToSheets(JSON.parse(cleaned), songIdHint);
+    } catch(e2) {
+      throw new Error('JSON parse failed after cleanup: ' + (e2 && e2.message ? e2.message : e2));
+    }
+  }
+}

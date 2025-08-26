@@ -72,15 +72,19 @@ function readAsArrayBuffer(file){ return new Promise(function(res,rej){ var r=ne
 async function importJsonFile(file){
   log('JSON → ' + file.name);
   const txt = await readAsText(file);
-  let obj;
-  try { obj = JSON.parse(txt); }
-  catch(e){ throw new Error('Invalid JSON'); }
   const hint = file.name.replace(/\.[^.]+$/, '');
-  google.script.run.withSuccessHandler(function(msg){
+  // Try client parse first; if both strict and cleaned fail, fall back to server tolerant parse
+  let obj;
+  try { obj = JSON.parse(txt); } catch(eStrict) {
+    try { obj = JSON.parse(jsonClean_(txt)); } catch(eClean) { obj = null; }
+  }
+  const call = google.script.run.withSuccessHandler(function(msg){
     log('OK ' + file.name + ': ' + msg);
   }).withFailureHandler(function(e){
     log('FAIL ' + file.name + ': ' + e);
-  }).importChordJsonToSheets(obj, hint);
+  });
+  if (obj) call.importChordJsonToSheets(obj, hint);
+  else call.importChordJsonRaw(txt, hint);
 }
 
 async function importMidiFile(file){
@@ -114,6 +118,20 @@ function reduceMidi_(midi){
     out.tracks.push({ name: t.name || ('Track ' + (ti+1)), channel: t.channel != null ? t.channel : 1, notes: notes });
   });
   return out;
+}
+
+// Remove BOM, // comments, /* */ comments, and trailing commas
+function jsonClean_(s){
+  let t = String(s || '');
+  // BOM
+  t = t.replace(/^\uFEFF/, '');
+  // Block comments
+  t = t.replace(/\/\*[\s\S]*?\*\//g, '');
+  // Line comments
+  t = t.replace(/(^|[^:\\])\/\/.*$/gm, '$1');
+  // Trailing commas before ] or }
+  t = t.replace(/,\s*([}\]])/g, '$1');
+  return t;
 }
 </script>
 </body>
