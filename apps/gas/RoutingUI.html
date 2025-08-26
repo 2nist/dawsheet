@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <style>
+    body { font-family: Arial, sans-serif; padding: 8px; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #ddd; padding: 6px; text-align: center; }
+  </style>
+</head>
+<body>
+  <h3>Routing Matrix</h3>
+  <div id="root">Loading…</div>
+  <script>
+    function render(state){
+      const [head, ...rows] = [state.header, ...state.rows];
+      let html = '<table><tr><th>'+head[0]+'</th>' + head.slice(1).map(h=>'<th>'+h+'</th>').join('') + '</tr>';
+      rows.forEach((r,ri)=>{
+        html += '<tr><th>'+r[0]+'</th>' + r.slice(1).map((v,ci)=>{
+          const checked = Number(v) ? 'checked' : '';
+          return `<td><input type="checkbox" data-ri="${ri}" data-ci="${ci}" ${checked}></td>`;
+        }).join('') + '</tr>';
+      });
+      html += '</table>';
+      document.getElementById('root').innerHTML = html;
+      document.querySelectorAll('input[type=checkbox]').forEach(el=>{
+        el.addEventListener('change', e=>{
+          const ri = Number(e.target.getAttribute('data-ri'));
+          const ci = Number(e.target.getAttribute('data-ci'));
+          google.script.run.withFailureHandler(alert).withSuccessHandler(()=>{}).routing_updateCell(ri, ci, e.target.checked);
+        });
+      });
+    }
+    google.script.run.withSuccessHandler(render).routing_getState();
+  </script>
+</body>
+</html>

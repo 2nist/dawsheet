@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html>
+<head>
+	<meta charset="UTF-8">
+	<style>
+		body{font-family:Poppins,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#fbf8f1;margin:12px;font-size:12px;color:#222}
+		h2{margin:0 0 8px 0}
+		.card{background:#fff;border:1px solid #e3dccb;border-radius:10px;padding:10px;margin-bottom:10px}
+		.row{display:flex;gap:8px;align-items:center;margin:6px 0}
+		label{display:block;font-weight:600;margin-bottom:2px}
+		input,select,button{font-size:12px}
+		.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+		.btn{border:1px solid #cfc6ad;background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
+		.btn.primary{background:#2a74ff;color:#fff;border-color:#2a74ff}
+		.muted{color:#666}
+		h3{margin:0 0 6px 0}
+	</style>
+</head>
+<body>
+	<h2>Trigger Editor</h2>
+
+	<div class="card">
+		<div class="row">
+			<label for="trigId">Trigger ID</label>
+			<input id="trigId" placeholder="trg_..." style="flex:1">
+			<button class="btn" onclick="load()">Load</button>
+		</div>
+		<div id="status" class="muted">Enter a Trigger ID from the Triggers sheet.</div>
+	</div>
+
+	<!-- STEP GRID -->
+	<div id="inspectorStepGrid" class="card" style="display:none">
+		<h3>Step Grid Inspector</h3>
+		<div class="grid2">
+			<div><label>Channel</label><input id="sg_channel" type="number" min="1" max="16"></div>
+			<div><label>Base Note (MIDI# or name)</label><input id="sg_baseNote" placeholder="36 or C1"></div>
+			<div><label>Resolution</label>
+				<select id="sg_resolution"><option>1/4</option><option>1/8</option><option>1/8T</option><option selected>1/16</option><option>bar</option><option>scene</option></select>
+			</div>
+			<div><label>Duration (beats)</label><input id="sg_duration" type="number" step="0.05" min="0" value="0.9"></div>
+			<div><label>Velocity Default</label><input id="sg_velDefault" type="number" min="0" max="127" value="100"></div>
+			<div><label>Bypass</label>
+				<select id="sg_bypass"><option value="false">OFF</option><option value="true">ON</option></select>
+			</div>
+		</div>
+		<div class="row" style="justify-content:flex-end;gap:6px;margin-top:10px">
+			<button class="btn" onclick="reloadInspector()">Reload</button>
+			<button class="btn primary" onclick="saveStepGrid()">Save Inspector</button>
+		</div>
+		<div id="sg_msg" class="muted"></div>
+	</div>
+
+	<!-- FADER -->
+	<div id="inspectorFader" class="card" style="display:none">
+		<h3>Fader Inspector</h3>
+		<div class="grid2">
+			<div><label>Channel</label><input id="fi_channel" type="number" min="1" max="16" value="1"></div>
+			<div><label>CC (single-lane default)</label><input id="fi_cc" type="number" min="0" max="127" value="74"></div>
+			<div><label>Min</label><input id="fi_min" type="number" min="0" max="127" value="127"></div>
+			<div><label>Max</label><input id="fi_max" type="number" min="0" max="127" value="127"></div>
+		</div>
+		<div class="row" style="justify-content:flex-end;gap:6px;margin-top:10px">
+			<button class="btn" onclick="reloadInspector()">Reload</button>
+			<button class="btn primary" onclick="saveFader()">Save Inspector</button>
+		</div>
+		<div id="fi_msg" class="muted"></div>
+	</div>
+
+	<!-- CHORD PALETTE -->
+	<div id="inspectorChordPalette" class="card" style="display:none">
+		<h3>Chord Palette Inspector</h3>
+		<div class="grid2">
+			<div><label>Channel</label><input id="cpi_channel" type="number" min="1" max="16" value="1"></div>
+			<div><label>Root</label><input id="cpi_root" placeholder="C"></div>
+			<div><label>Scale</label>
+				<select id="cpi_scale">
+					<option>major</option><option>minor</option><option>dorian</option>
+					<option>mixolydian</option><option>lydian</option><option>phrygian</option>
+					<option>locrian</option>
+				</select>
+			</div>
+			<div><label>Voicing</label>
+				<select id="cpi_voicing">
+					<option>root</option><option>first</option><option>second</option><option>close</option><option>open</option>
+				</select>
+			</div>
+		</div>
+		<div class="row" style="justify-content:flex-end;gap:6px;margin-top:10px">
+			<button class="btn" onclick="reloadInspector()">Reload</button>
+			<button class="btn primary" onclick="saveChordPalette()">Save Inspector</button>
+		</div>
+		<div id="cpi_msg" class="muted"></div>
+	</div>
+
+<script>
+let CURRENT_KIND = null;
+function load(){
+	const id = document.getElementById('trigId').value.trim();
+	if(!id) return;
+	document.getElementById('status').textContent = 'Loading...';
+	google.script.run.withSuccessHandler(t=>{
+		document.getElementById('status').textContent = 'Loaded.';
+		const kind = t && t.behavior && t.behavior.kind || 'grid-steps';
+		CURRENT_KIND = kind;
+		showInspector(id, kind);
+	}).withFailureHandler(e=>{
+		document.getElementById('status').textContent = String(e);
+	}).te_getTrigger(id);
+}
+function showOnly(elId){
+	['inspectorStepGrid','inspectorFader','inspectorChordPalette'].forEach(id=>{
+		document.getElementById(id).style.display = (id===elId?'block':'none');
+	});
+}
+function showInspector(id, kind){
+	if (kind === 'grid-steps'){
+		showOnly('inspectorStepGrid');
+		google.script.run.withSuccessHandler(d=>{
+			document.getElementById('sg_channel').value = d.channel||10;
+			document.getElementById('sg_baseNote').value = d.baseNote||'36';
+			document.getElementById('sg_resolution').value = d.resolution||'1/16';
+			document.getElementById('sg_duration').value = d.durationBeats||0.9;
+			document.getElementById('sg_velDefault').value = d.velocityDefault||100;
+			document.getElementById('sg_bypass').value = String(!!d.bypass);
+			document.getElementById('sg_msg').textContent = 'Inspector ready.';
+		}).withFailureHandler(e=>{
+			document.getElementById('sg_msg').textContent = String(e);
+		}).te_getStepGridInspectorData(id);
+	} else if (kind === 'fader'){
+		showOnly('inspectorFader');
+		google.script.run.withSuccessHandler(d=>{
+			document.getElementById('fi_channel').value = d.channel||1;
+			document.getElementById('fi_cc').value = d.cc||74;
+			document.getElementById('fi_min').value = d.min||0;
+			document.getElementById('fi_max').value = d.max||127;
+			document.getElementById('fi_msg').textContent = 'Inspector ready.';
+		}).withFailureHandler(e=>{
+			document.getElementById('fi_msg').textContent = String(e);
+		}).fi_getFaderInspectorData(id);
+	} else if (kind === 'chord-palette'){
+		showOnly('inspectorChordPalette');
+		google.script.run.withSuccessHandler(d=>{
+			document.getElementById('cpi_channel').value = d.channel||1;
+			document.getElementById('cpi_root').value = d.root||'C';
+			document.getElementById('cpi_scale').value = d.scale||'major';
+			document.getElementById('cpi_voicing').value = d.voicing||'root';
+			document.getElementById('cpi_msg').textContent = 'Inspector ready.';
+		}).withFailureHandler(e=>{
+			document.getElementById('cpi_msg').textContent = String(e);
+		}).cpi_getChordPaletteData(id);
+	} else {
+		showOnly('inspectorStepGrid');
+		document.getElementById('sg_msg').textContent = 'Unknown kind; defaulting to Step Grid.';
+	}
+}
+function reloadInspector(){ showInspector(document.getElementById('trigId').value.trim(), CURRENT_KIND); }
+
+function saveStepGrid(){
+	const id = document.getElementById('trigId').value.trim();
+	const body = {
+		channel: Number(document.getElementById('sg_channel').value)||10,
+		baseNote: document.getElementById('sg_baseNote').value||'36',
+		resolution: document.getElementById('sg_resolution').value||'1/16',
+		durationBeats: Number(document.getElementById('sg_duration').value)||0.9,
+		velocityDefault: Number(document.getElementById('sg_velDefault').value)||100,
+		bypass: document.getElementById('sg_bypass').value==='true'
+	};
+	google.script.run.withSuccessHandler(msg=>{
+		document.getElementById('sg_msg').textContent = msg||'Saved.';
+	}).withFailureHandler(e=>{
+		document.getElementById('sg_msg').textContent = String(e);
+	}).te_updateStepGridInspector(id, body);
+}
+function saveFader(){
+	const id = document.getElementById('trigId').value.trim();
+	const body = {
+		channel: Number(document.getElementById('fi_channel').value)||1,
+		cc: Number(document.getElementById('fi_cc').value)||74,
+		min: Number(document.getElementById('fi_min').value)||0,
+		max: Number(document.getElementById('fi_max').value)||127
+	};
+	google.script.run.withSuccessHandler(msg=>{
+		document.getElementById('fi_msg').textContent = msg||'Saved.';
+	}).withFailureHandler(e=>{
+		document.getElementById('fi_msg').textContent = String(e);
+	}).fi_updateFaderInspector(id, body);
+}
+function saveChordPalette(){
+	const id = document.getElementById('trigId').value.trim();
+	const body = {
+		channel: Number(document.getElementById('cpi_channel').value)||1,
+		root: document.getElementById('cpi_root').value||'C',
+		scale: document.getElementById('cpi_scale').value||'major',
+		voicing: document.getElementById('cpi_voicing').value||'root'
+	};
+	google.script.run.withSuccessHandler(msg=>{
+		document.getElementById('cpi_msg').textContent = msg||'Saved.';
+	}).withFailureHandler(e=>{
+		document.getElementById('cpi_msg').textContent = String(e);
+	}).cpi_updateChordPalette(id, body);
+}
+</script>
+</body>
+</html>
+

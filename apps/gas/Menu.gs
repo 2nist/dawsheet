@@ -1,52 +1,47 @@
 /**
- * @OnlyCurrentDoc
- *
- * This script handles the creation of custom menus in the Google Sheet UI.
- */
-
-/**
- * The onOpen trigger runs automatically when the spreadsheet is opened.
- * It creates a custom menu named "DAWSheet".
- *
- * @param {object} e The event parameter for a simple onOpen trigger.
- */
-function onOpen(e) {
-  SpreadsheetApp.getUi().createMenu('DAWSheet')
-  .addItem('Setup Wizard', 'openSetupWizard')
-    .addItem('Send Note from Selection', 'sendNoteFromSelection')
+function onOpen() {
+  const ui = SpreadsheetApp.getUi();
+  ui.createMenu('DAWSheet')
+    .addItem('Command Center', 'openCommandCenter')
     .addSeparator()
-    .addItem('Poll Status Logs', 'pollStatus')
+    .addSubMenu(
+      ui.createMenu('Editors')
+        .addItem('Trigger Editor', 'openEditTriggersUi')
+        .addItem('Routing', 'openRoutingSidebar')
+        .addItem('Song Library', 'showSongLibrarySidebar')
+    )
+    .addSeparator()
+    .addSubMenu(
+      ui.createMenu('Templates')
+    .addItem('Insert Step Grid 1x16', 'tpl_insertStepGrid16')
+    .addItem('Insert CC Faders 8', 'tpl_insertCcfaders8')
+    .addItem('Insert Chord Palette 8', 'tpl_insertChordPalette8')
+    )
+    .addSeparator()
+    .addSubMenu(
+      ui.createMenu('Import')
+        .addItem('Batch Import (.json / .mid)', 'openBatchImportSidebar')
+        .addItem('Song Library Import Hub', 'openImportHubSidebar')
+    )
+    .addSeparator()
+    .addSubMenu(
+      ui.createMenu('Utilities')
+        .addItem('Lib Self-Test (AJV/Tonal)', 'util_libSelfTest')
+        .addItem('Clear Lib Cache (AJV/Tonal)', 'util_clearLibCache')
+    )
     .addToUi();
 }
 
-/**
- * A function that is called when the "Send Note from Selection" menu item is clicked.
- * It gets the currently selected cell, parses it, and publishes a NOTE command.
- */
-function sendNoteFromSelection() {
-  const sheet = SpreadsheetApp.getActiveSheet();
-  const range = sheet.getActiveRange();
-  const value = String(range.getValue()).trim();
+// Optional: keep these as no-ops if not already defined elsewhere.
+function openImportHubSidebar() {
+  if (typeof import_openHubSidebar === 'function') return import_openHubSidebar();
+  SpreadsheetApp.getUi().alert('Import Hub not wired yet. Use Import → Batch Import for now.');
+}
 
-  if (!value) {
-    SpreadsheetApp.getUi().alert('The selected cell is empty.');
-    return;
-  }
-
-  // Use the same validation approach as the onEdit trigger (allow simple or full format)
-  if (!/^[A-G][#b]?\d/i.test(value)) {
-    SpreadsheetApp.getUi().alert('Invalid note format in cell. Expected format: "C4" or "C4, vel=100, dur=0.5"');
-    return;
-  }
-
-  const payload = parseCellToNotePayload(value, range);
-  if (payload) {
-    publish(PropertiesService.getScriptProperties().getProperty('COMMANDS_TOPIC'), payload);
-    range.setBackground('#d9ead3'); // Green for success
-    // A simple sleep is not ideal in GAS, but for a quick UI feedback it's ok.
-    Utilities.sleep(2000);
-    range.setBackground(null);
-  } else {
-    SpreadsheetApp.getUi().alert('Could not parse the note from the selected cell.');
+// Bridge names from older code to new menu labels.
+function openEditTriggersUi(){ return openTriggerEditor(); }
+function openRoutingSidebar(){ return openRouting(); }
+function util_libSelfTest(){ SpreadsheetApp.getUi().alert('Self-test not implemented.'); }
+function util_clearLibCache(){ SpreadsheetApp.getUi().alert('Clear cache not implemented.'); }
   }
 }

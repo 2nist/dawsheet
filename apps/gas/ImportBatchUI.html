@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+  body{font-family:Poppins,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#fbf8f1;margin:12px;font-size:12px;color:#222}
+  .card{background:#fff;border:1px solid #e3dccb;border-radius:10px;padding:10px;margin-bottom:10px}
+  .btn{border:1px solid #cfc6ad;background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
+  .btn.primary{background:#2a74ff;color:#fff;border-color:#2a74ff}
+  .muted{color:#666}
+  .drop{border:2px dashed #cfc6ad;border-radius:10px;padding:16px;text-align:center;background:#fff}
+  .row{display:flex;gap:8px;align-items:center;margin:6px 0}
+  .log{max-height:180px;overflow:auto;background:#fff;border:1px solid #e3dccb;border-radius:8px;padding:8px;font-family:ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;font-size:11px;white-space:pre-wrap}
+</style>
+</head>
+<body>
+  <?!= HtmlService.createHtmlOutputFromFile('midi_iife').getContent(); ?>
+
+  <div class="card">
+    <h3 style="margin:0 0 6px 0">Batch Import</h3>
+    <div class="muted" style="margin-bottom:8px">Drop .json (chords/songs) or .mid files. Multiple files are supported.</div>
+    <div id="drop" class="drop" ondragover="event.preventDefault()" ondrop="handleDrop(event)">
+      Drag & drop files here<br>(or)
+      <div class="row" style="justify-content:center;margin-top:8px">
+        <input id="file" type="file" multiple accept=".json,.mid" />
+        <button class="btn" onclick="pick()">Choose…</button>
+      </div>
+    </div>
+    <div class="row" style="justify-content:flex-end;margin-top:8px">
+      <button class="btn" onclick="clearLog()">Clear</button>
+    </div>
+    <div id="log" class="log"></div>
+  </div>
+
+<script>
+function pick(){ document.getElementById('file').click(); }
+document.getElementById('file').addEventListener('change', function(e){ handleFiles(e.target.files); });
+
+function handleDrop(e){
+  e.preventDefault();
+  if (e.dataTransfer && e.dataTransfer.files) {
+    handleFiles(e.dataTransfer.files);
+  }
+}
+
+function clearLog(){ document.getElementById('log').textContent = ''; }
+function log(s){ var el=document.getElementById('log'); el.textContent += s + '\n'; el.scrollTop = el.scrollHeight; }
+
+async function handleFiles(fileList){
+  var files = Array.from(fileList || []);
+  if (!files.length){ log('No files.'); return; }
+  log('Found ' + files.length + ' file(s).');
+  for (const f of files){
+    try{
+      if (f.name.toLowerCase().endsWith('.json')){
+        await importJsonFile(f);
+      } else if (f.name.toLowerCase().endsWith('.mid')){
+        await importMidiFile(f);
+      } else {
+        log('Skip ' + f.name + ': unsupported extension.');
+      }
+    } catch(err){
+      log('ERROR ' + f.name + ': ' + (err.message || err));
+    }
+  }
+  log('Done.');
+}
+
+function readAsText(file){ return new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(){res(r.result);}; r.onerror=function(){rej(r.error);}; r.readAsText(file); }); }
+function readAsArrayBuffer(file){ return new Promise(function(res,rej){ var r=new FileReader(); r.onload=function(){res(r.result);}; r.onerror=function(){rej(r.error);}; r.readAsArrayBuffer(file); }); }
+
+async function importJsonFile(file){
+  log('JSON → ' + file.name);
+  const txt = await readAsText(file);
+  let obj;
+  try { obj = JSON.parse(txt); }
+  catch(e){ throw new Error('Invalid JSON'); }
+  const hint = file.name.replace(/\.[^.]+$/, '');
+  google.script.run.withSuccessHandler(function(msg){
+    log('OK ' + file.name + ': ' + msg);
+  }).withFailureHandler(function(e){
+    log('FAIL ' + file.name + ': ' + e);
+  }).importChordJsonToSheets(obj, hint);
+}
+
+async function importMidiFile(file){
+  log('MIDI → ' + file.name);
+  if (!window.MidiLib || typeof window.MidiLib.parse !== 'function'){
+    throw new Error('MIDI parser not available (MidiLib).');
+  }
+  const buf = await readAsArrayBuffer(file);
+  let midi;
+  try { midi = window.MidiLib.parse(new Uint8Array(buf)); }
+  catch(e){ throw new Error('MIDI parse failed'); }
+
+  const reduced = reduceMidi_(midi);
+  const hint = file.name.replace(/\.[^.]+$/, '');
+  google.script.run.withSuccessHandler(function(msg){
+    log('OK ' + file.name + ': ' + msg);
+  }).withFailureHandler(function(e){
+    log('FAIL ' + file.name + ': ' + e);
+  }).importMidiJsonToSheets(reduced, hint);
+}
+
+function reduceMidi_(midi){
+  var out = { meta:{title: (midi && midi.name) || '', ppq: (midi.header && midi.header.ppq) || 480}, tracks: [] };
+  (midi.tracks||[]).forEach(function(t,ti){
+    var notes = (t.notes||[]).map(function(n){ return {
+      time: n.ticks != null ? n.ticks : (n.time != null ? n.time : 0),
+      duration: n.durationTicks != null ? n.durationTicks : (n.duration != null ? n.duration : 0),
+      midi: n.midi != null ? n.midi : (n.noteNumber != null ? n.noteNumber : 60),
+      velocity: Math.round(((n.velocity != null ? n.velocity : 0.8) * 127))
+    }; });
+    out.tracks.push({ name: t.name || ('Track ' + (ti+1)), channel: t.channel != null ? t.channel : 1, notes: notes });
+  });
+  return out;
+}
+</script>
+</body>
+</html>
