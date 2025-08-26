@@ -3,6 +3,9 @@ package io.dawsheet.midi;
 import javax.sound.midi.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class MidiOut implements AutoCloseable {
     private static final Logger log = LoggerFactory.getLogger(MidiOut.class);
@@ -10,6 +13,7 @@ public class MidiOut implements AutoCloseable {
     private Synthesizer synth;
     private MidiDevice device;
     private Receiver receiver;
+    private static final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
 
     public MidiOut(String preferredDeviceName) throws Exception {
         MidiDevice.Info[] infos = MidiSystem.getMidiDeviceInfo();
@@ -48,18 +52,17 @@ public class MidiOut implements AutoCloseable {
             on.setMessage(ShortMessage.NOTE_ON, ch, clamp(note, 0, 127), clamp(velocity, 0, 127));
             receiver.send(on, -1);
 
-            // Schedule NOTE_OFF using a background thread (simple approach)
+            // Schedule NOTE_OFF using a shared ScheduledExecutorService
             int offNote = clamp(note, 0, 127);
             int offCh = ch;
-            new Thread(() -> {
+            long delayMs = Math.max(0L, (long)(durationSec * 1000));
+            scheduler.schedule(() -> {
                 try {
-                    long sleep = Math.max(0L, (long)(durationSec * 1000));
-                    Thread.sleep(sleep);
                     ShortMessage off = new ShortMessage();
                     off.setMessage(ShortMessage.NOTE_OFF, offCh, offNote, 0);
                     receiver.send(off, -1);
                 } catch (Exception ignored) {}
-            }, "noteoff").start();
+            }, delayMs, TimeUnit.MILLISECONDS);
         } catch (Exception ex) {
             log.error("Failed to send NOTE_ON: {}", ex.toString());
         }
@@ -74,5 +77,6 @@ public class MidiOut implements AutoCloseable {
         try { if (receiver != null) receiver.close(); } catch (Exception ignored) {}
         try { if (device != null && device.isOpen()) device.close(); } catch (Exception ignored) {}
         try { if (synth != null && synth.isOpen()) synth.close(); } catch (Exception ignored) {}
+        scheduler.shutdown();
     }
 }
