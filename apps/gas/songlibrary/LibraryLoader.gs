@@ -26,19 +26,24 @@ function loadScript(url, cacheKey) {
  * Evaluates provided JS code in the Apps Script context.
  * @param {string} scriptContent
  */
-function evaluateScript(scriptContent) {
+function evaluateScript(scriptContent, expectedGlobalName) {
+  // Provide CommonJS and browser-like globals so UMD/CJS bundles don't throw in GAS.
+  var prelude = "(function(){var exports = {}; var module = { exports: exports }; var window = this; var self = this; var globalThis = this; var global = this;";
+  var postlude = "; if (expected && typeof this[expected] === 'undefined' && module && module.exports) { this[expected] = module.exports; } }).call(this);";
+  // Inject the expected symbol name into the closure scope safely.
+  var header = "var expected = " + JSON.stringify(expectedGlobalName || "") + ";";
   // eslint-disable-next-line no-eval
-  eval(scriptContent);
+  eval(prelude + header + scriptContent + postlude);
 }
 
 /** Loads and exposes Tonal.js globally. */
 function loadTonalJs() {
   const tonalUrl = 'https://cdn.jsdelivr.net/npm/@tonaljs/tonal/browser/tonal.min.js';
-  evaluateScript(loadScript(tonalUrl, 'tonalJs'));
+  evaluateScript(loadScript(tonalUrl, 'tonalJs'), 'Tonal');
 }
 
 /** Loads and exposes AJV globally. */
 function loadAjv() {
   const ajvUrl = 'https://cdn.jsdelivr.net/npm/ajv@8.6.0/dist/ajv.min.js';
-  evaluateScript(loadScript(ajvUrl, 'ajvJs'));
+  evaluateScript(loadScript(ajvUrl, 'ajvJs'), 'Ajv');
 }
