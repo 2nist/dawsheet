@@ -11,7 +11,6 @@ import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import io.dawsheet.midi.MidiOut;
 import io.dawsheet.midi.NoteUtil;
-import io.dawsheet.schema.SchemaValidator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,14 +52,7 @@ public class App {
                 String data = message.getData().toStringUtf8();
                 try {
                     JsonObject root = gson.fromJson(data, JsonObject.class);
-                    if (root == null) {
-                        throw new IllegalArgumentException("Invalid JSON");
-                    }
-                    // If envelope version is present, validate against schema first
-                    if (root.has("v")) {
-                        SchemaValidator.validate(data);
-                    }
-                    if (!root.has("type")) {
+                    if (root == null || !root.has("type")) {
                         throw new IllegalArgumentException("Missing 'type' field");
                     }
                     String type = root.get("type").getAsString();

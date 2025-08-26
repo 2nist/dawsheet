@@ -19,7 +19,6 @@ apps/proxy-java/build/
 apps/proxy-java/.gradle/
 apps/proxy-java/gradle-app.setting
 apps/proxy-java/.gradletasknamecache
-/.gradle/
 *.class
 # *.jar - commented out to allow gradle-wrapper.jar
 *.war

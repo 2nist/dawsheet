@@ -30,17 +30,10 @@ dependencies {
     // JSON parsing
     implementation 'com.google.code.gson:gson:2.10.1'
 
-    // JUnit 5 (Jupiter + Platform) for testing
-    testImplementation platform('org.junit:junit-bom:5.10.2')
-    testImplementation 'org.junit.jupiter:junit-jupiter'
-    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine'
-    // Ensure the JUnit Platform launcher is present at runtime (needed in some Gradle versions)
+    // JUnit Jupiter for testing (Gradle 9 compatible)
+    testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'
+    testRuntimeOnly 'org.junit.jupiter:junit-jupiter-engine:5.10.2'
     testRuntimeOnly 'org.junit.platform:junit-platform-launcher:1.10.2'
-
-    // Jackson for JSON mapping
-    implementation 'com.fasterxml.jackson.core:jackson-databind:2.16.1'
-    // networknt JSON Schema validator
-    implementation 'com.networknt:json-schema-validator:1.0.87'
 }
 
 java {
@@ -56,9 +49,6 @@ application {
 test {
     useJUnitPlatform()
 }
-
-// Make the root spec available on the classpath at runtime (copy into resources)
-
 
 // Custom task to run the application and load environment variables from a .env file
 task runWithEnv(type: JavaExec) {
@@ -99,8 +89,3 @@ tasks.named('run').configure {
 }
 // Set our custom task as the one to run by default
 defaultTasks 'runWithEnv'
-
-// Use JUnit 5 platform for tests
-test {
-    useJUnitPlatform()
-}

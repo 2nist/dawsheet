@@ -13,7 +13,6 @@
 function onOpen(e) {
   SpreadsheetApp.getUi().createMenu('DAWSheet')
   .addItem('Setup Wizard', 'openSetupWizard')
-  .addItem('Open Song Library', 'showSongLibrarySidebar')
     .addItem('Send Note from Selection', 'sendNoteFromSelection')
     .addSeparator()
     .addItem('Poll Status Logs', 'pollStatus')
