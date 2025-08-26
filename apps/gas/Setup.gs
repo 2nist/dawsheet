@@ -2,7 +2,7 @@
  * Opens the Setup Wizard dialog.
  */
 function openSetupWizard() {
-  const html = HtmlService.createHtmlOutputFromFile('Setup')
+  const html = HtmlService.createHtmlOutputFromFile('SetupDialog')
     .setWidth(420)
     .setHeight(420)
     .setTitle('DAWSheet Setup');
