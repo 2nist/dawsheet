@@ -9,7 +9,7 @@ function openBatchImportSidebar(){
  */
 function importChordJsonToSheets(jsonObj, songIdHint){
   const songId = makeSafeId_(songIdHint || (jsonObj.meta && jsonObj.meta.title) || 'song');
-  const { title, bpm, key } = inferSongMetaFromJson_(jsonObj);
+  const { title, bpm, key } = inferSongMetaFromJson_(jsonObj, songIdHint);
   const sections = inferSectionsFromJson_(jsonObj);
   const arrangement = inferArrangementFromJson_(jsonObj, sections);
 
@@ -43,7 +43,7 @@ function importMidiJsonToSheets(midiReduced, songIdHint){
   const arrangement = [{ arrangementIndex:1, sectionId:'A', startBar:1, repeat:1 }];
   const song = {
     v:1, songId,
-    meta:{ title: (midiReduced.meta && midiReduced.meta.title) || songId, artist:'', bpm, key, timeSignature:'4/4', tags:['from-midi'], notes:'' },
+    meta:{ title: (midiReduced.meta && midiReduced.meta.title) || prettyTitleFromHint_(songIdHint || songId), artist:'', bpm, key, timeSignature:'4/4', tags:['from-midi'], notes:'' },
     sections, arrangement, commands_ref:[]
   };
   try {
@@ -58,11 +58,19 @@ function importMidiJsonToSheets(midiReduced, songIdHint){
 }
 
 // Helpers
-function makeSafeId_(s){ return String(s).toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,''); }
-function inferSongMetaFromJson_(obj){
-  const title = (obj.meta && obj.meta.title) || obj.title || 'Untitled';
-  const bpm = Number((obj.meta && obj.meta.bpm) || obj.bpm || 120);
-  const key = String((obj.meta && obj.meta.key) || obj.key || 'C');
+function makeSafeId_(s){ return String(s||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_|_$/g,''); }
+function prettyTitleFromHint_(hint){
+  var t = String(hint||'').replace(/[_\-]+/g,' ').replace(/\s+/g,' ').trim();
+  return t || 'Untitled';
+}
+function inferSongMetaFromJson_(obj, hint){
+  // Try common paths
+  var meta = obj && obj.meta ? obj.meta : (obj && obj.song && obj.song.meta ? obj.song.meta : {});
+  var title = (meta && meta.title) || obj.title || (obj.song && obj.song.title) || prettyTitleFromHint_(hint);
+  var bpm = Number((meta && (meta.bpm || meta.tempo)) || obj.bpm || 120);
+  var keyVal = (meta && (meta.key || (meta.scale && meta.scale.key))) || obj.key || 'C';
+  if (keyVal && typeof keyVal === 'object') { keyVal = keyVal.tonic || keyVal.key || 'C'; }
+  var key = String(keyVal);
   return { title, bpm, key };
 }
 function inferSectionsFromJson_(obj){
