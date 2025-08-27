@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <style>
+    body { font: 13px/1.4 Arial, sans-serif; padding: 12px; }
+    h2 { margin: 0 0 8px; font-size: 16px; }
+    .row { margin-bottom: 10px; }
+    select, input[type="text"] { width: 100%; padding: 6px; }
+    fieldset { border: 1px solid #ddd; padding: 8px; margin: 10px 0; }
+    legend { padding: 0 6px; color: #333; }
+    .aliases { display: flex; flex-wrap: wrap; gap: 6px; }
+    .tag { background: #f0f0f0; border-radius: 10px; padding: 2px 8px; display: inline-flex; align-items: center; gap: 6px; }
+    .tag button { border: none; background: none; cursor: pointer; color: #a00; }
+    .actions { display: flex; gap: 8px; flex-wrap: wrap; }
+    button { padding: 6px 10px; cursor: pointer; }
+    small.muted { color: #777; }
+  </style>
+  <script>
+    const state = {
+      songs: [],
+      selectedId: '',
+      aliases: []
+    };
+
+    function gasCall(name, ...args){
+      return new Promise((resolve, reject) => {
+        google.script.run.withSuccessHandler(resolve).withFailureHandler(err => reject(err && err.message ? err.message : err))[name](...args);
+      });
+    }
+
+    async function init(){
+      const songs = await gasCall('sm_listSongsWithMasters');
+      state.songs = songs;
+      const sel = document.getElementById('songSel');
+      sel.innerHTML = '<option value="">— Select a song —</option>' + songs.map(s => `<option value="${s.songId}">${escapeHtml(s.title || s.songId)} (${s.songId})</option>`).join('');
+      if (songs.length) {
+        sel.value = songs[0].songId;
+        onSongChange();
+      }
+    }
+
+    function escapeHtml(s){ return String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c])); }
+
+    async function onSongChange(){
+      const sel = document.getElementById('songSel');
+      state.selectedId = sel.value;
+      const song = state.songs.find(x => x.songId === state.selectedId) || { masterSource: '' };
+      setMasterRadios(song.masterSource || '');
+      await refreshAliases();
+    }
+
+    function setMasterRadios(val){
+      document.querySelectorAll('input[name="masterSource"]').forEach(r => r.checked = (r.value === (val||'')));
+      document.getElementById('masterLabel').textContent = val ? val : 'none';
+    }
+
+    async function saveMaster(){
+      if (!state.selectedId) return alert('Pick a song first.');
+      const val = document.querySelector('input[name="masterSource"]:checked')?.value || '';
+      await gasCall('sm_setMaster', state.selectedId, val);
+      const s = state.songs.find(x => x.songId === state.selectedId);
+      if (s) s.masterSource = val;
+      setMasterRadios(val);
+    }
+
+    async function quickSetMaster(val){
+      document.querySelector(`input[name="masterSource"][value="${val}"]`).checked = true;
+      await saveMaster();
+    }
+
+    async function refreshAliases(){
+      if (!state.selectedId){ state.aliases = []; renderAliases(); return; }
+      state.aliases = await gasCall('sm_getAliases', state.selectedId);
+      renderAliases();
+    }
+
+    async function addAlias(){
+      if (!state.selectedId) return alert('Pick a song first.');
+      const inp = document.getElementById('aliasInput');
+      const raw = inp.value.trim();
+      if (!raw) return;
+      await gasCall('sm_addAlias', state.selectedId, raw);
+      inp.value = '';
+      await refreshAliases();
+    }
+
+    async function removeAlias(alias){
+      await gasCall('sm_removeAlias', alias);
+      await refreshAliases();
+    }
+
+    async function openBatchImport(){
+      await gasCall('sm_openBatchImport');
+    }
+
+    // Placeholder: hooks to wire future file-type tools from here
+    function notImplemented(){ alert('Coming soon'); }
+
+    async function deleteEverywhere(){
+      if (!state.selectedId) return alert('Pick a song first.');
+      const includeLyrics = document.getElementById('deleteLyrics')?.checked;
+      const confirmMsg = `Delete '${state.selectedId}' from Library/Sections/Arrangements/Aliases/Masters/Annotations`+
+        (includeLyrics ? ' and Lyrics' : '') + '? This cannot be undone.';
+      if (!confirm(confirmMsg)) return;
+      const res = await gasCall('sm_deleteSongEverywhere', state.selectedId, !!includeLyrics);
+      alert(res);
+      await init();
+    }
+
+    document.addEventListener('DOMContentLoaded', init);
+  </script>
+</head>
+<body>
+  <h2>Song Manager</h2>
+
+  <div class="row">
+    <label for="songSel">Song</label>
+    <select id="songSel" onchange="onSongChange()"></select>
+  </div>
+
+  <fieldset>
+    <legend>Master Source</legend>
+    <div class="row">
+      <label>Current: <strong id="masterLabel">none</strong></label>
+    </div>
+    <div class="row">
+      <label><input type="radio" name="masterSource" value=""/> none</label>
+      <label><input type="radio" name="masterSource" value="json"/> json</label>
+      <label><input type="radio" name="masterSource" value="midi"/> midi</label>
+      <label><input type="radio" name="masterSource" value="lab"/> lab</label>
+      <label><input type="radio" name="masterSource" value="manual"/> manual</label>
+    </div>
+    <div class="actions">
+      <button onclick="saveMaster()">Save</button>
+      <button onclick="quickSetMaster('json')">Set JSON</button>
+      <button onclick="quickSetMaster('midi')">Set MIDI</button>
+      <button onclick="quickSetMaster('lab')">Set LAB</button>
+      <button onclick="quickSetMaster('manual')">Set Manual</button>
+      <span style="flex:1"></span>
+      <label style="display:flex;align-items:center;gap:6px;">
+        <input type="checkbox" id="deleteLyrics" /> also remove Lyrics rows
+      </label>
+      <button style="background:#b30000;color:white;" onclick="deleteEverywhere()">Delete everywhere…</button>
+    </div>
+    <div class="row">
+      <small class="muted">Master controls which source can overwrite sections/arrangements. Others only fill missing meta.</small>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Aliases</legend>
+    <div class="row aliases" id="aliases"></div>
+    <div class="row" style="display:flex; gap:8px;">
+      <input type="text" id="aliasInput" placeholder="Add alias (title or slug)" />
+      <button onclick="addAlias()">Add</button>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>File-Type Tools</legend>
+    <div class="actions">
+      <button onclick="openBatchImport()">Open Batch Import</button>
+      <button onclick="notImplemented()">Lyrics Tools</button>
+      <button onclick="notImplemented()">Annotations Tools</button>
+    </div>
+    <div class="row">
+      <small class="muted">This area can host JSON/MIDI/LAB/Lyrics helpers. Batch Import supports .json, .mid, .csv, .lab.</small>
+    </div>
+  </fieldset>
+
+  <fieldset>
+    <legend>Defaults</legend>
+    <div class="row" style="gap:6px; align-items:center;">
+      <label style="min-width:80px;">Default artist</label>
+      <input type="text" id="defArtist" placeholder="e.g., The Beatles" style="flex:1;" />
+      <button onclick="saveDefaultArtist()">Set</button>
+    </div>
+    <div class="actions">
+      <button onclick="backfillArtists()">Backfill missing artist</button>
+    </div>
+  </fieldset>
+
+  <script>
+    function renderAliases(){
+      const wrap = document.getElementById('aliases');
+      if (!state.aliases.length){ wrap.innerHTML = '<small class="muted">No aliases yet.</small>'; return; }
+      wrap.innerHTML = state.aliases.map(a => `
+        <span class="tag" title="${escapeHtml(a.source||'')}">
+          ${escapeHtml(a.alias)}
+          <button title="Remove" onclick="removeAlias('${a.alias.replace(/'/g,"&#39;")}')">×</button>
+        </span>
+      `).join('');
+    }
+
+    // Load default artist on show
+    (async function(){
+      try {
+        const da = await gasCall('sm_getDefaultArtist');
+        const input = document.getElementById('defArtist');
+        if (input) input.value = da || '';
+      } catch(_) {}
+    })();
+
+    async function saveDefaultArtist(){
+      const v = document.getElementById('defArtist').value.trim();
+      const msg = await gasCall('sm_setDefaultArtist', v);
+      alert(msg);
+    }
+    async function backfillArtists(){
+      const msg = await gasCall('sm_backfillMissingArtists');
+      alert(msg);
+    }
+  </script>
+</body>
+</html>

@@ -1,5 +1,54 @@
 <script>
-window.MidiLib = window.MidiLib || {
-  parse: function(){ throw new Error('MIDI parser not loaded.'); }
-};
+(function(){
+  function loadScript(src, onload){
+    try {
+      var s = document.createElement('script');
+      s.src = src; s.async = true; s.onload = onload; s.onerror = onload;
+      document.head.appendChild(s);
+    } catch(_){ onload(); }
+  }
+  function toArrayBuffer(input){
+    if (input && input.buffer instanceof ArrayBuffer) return input.buffer;
+    if (input instanceof ArrayBuffer) return input;
+    return input;
+  }
+  window.MidiLib = window.MidiLib || {};
+  var readyResolvers = [];
+  window.MidiLib.ready = new Promise(function(res){ readyResolvers.push(res); });
+  window.MidiLib.parse = function(){ throw new Error('MIDI parser not loaded.'); };
+
+  function setToneParser(){
+    if (typeof Midi === 'function'){
+      window.MidiLib.parse = function(bytes){ return new Midi(toArrayBuffer(bytes)); };
+      readyResolvers.forEach(function(r){ try{ r(); }catch(_){}}); readyResolvers = [];
+      return true;
+    }
+    return false;
+  }
+  function setConvertParser(){
+    if (window.MidiConvert && typeof window.MidiConvert.parse === 'function'){
+      window.MidiLib.parse = function(bytes){ return window.MidiConvert.parse(toArrayBuffer(bytes)); };
+      readyResolvers.forEach(function(r){ try{ r(); }catch(_){}}); readyResolvers = [];
+      return true;
+    }
+    return false;
+  }
+
+  // Try ToneJS Midi first (UMD build), then MidiConvert fallback.
+  var triedFallback = false;
+  function tryLoad(){
+    if (setToneParser()) return;
+    if (setConvertParser()) return;
+    if (!triedFallback){
+      triedFallback = true;
+      // Load ToneJS Midi (UMD) then fallback to MidiConvert if not present
+      loadScript('https://cdn.jsdelivr.net/npm/@tonejs/midi@2.0.28/build/Midi.min.js', function(){
+        if (setToneParser()) return;
+        loadScript('https://unpkg.com/midiconvert/build/MidiConvert.min.js', function(){ setConvertParser(); });
+      });
+    }
+  }
+  // Kick off loading
+  tryLoad();
+})();
 </script>

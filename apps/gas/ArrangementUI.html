@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>body{font-family:Poppins,sans-serif;background:#fbf8f1;margin:12px;font-size:12px}
+.card{background:#fff;border:1px solid #e3dccb;border-radius:10px;padding:10px;margin-bottom:10px}</style></head>
+<body>
+<div class="card"><b>Arrangement Template Generator</b>
+  <div>Song ID: <input id="songId" placeholder="songId"></div>
+  <button onclick="run()">Generate</button>
+  <div id="msg" style="margin-top:6px"></div>
+</div>
+<script>
+function run(){
+  const id=document.getElementById('songId').value.trim();
+  google.script.run.withSuccessHandler(msg=>{
+    document.getElementById('msg').textContent = msg;
+  }).withFailureHandler(e=>{ document.getElementById('msg').textContent=String(e); }).atg_generate(id);
+}
+</script></body></html>

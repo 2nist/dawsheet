@@ -18,11 +18,11 @@
 
   <div class="card">
     <h3 style="margin:0 0 6px 0">Batch Import</h3>
-    <div class="muted" style="margin-bottom:8px">Drop .json (chords/songs) or .mid files. Multiple files are supported.</div>
+  <div class="muted" style="margin-bottom:8px">Drop .json (chords/songs), .mid, .csv (lyrics), or .lab (annotations) files. Multiple files are supported.</div>
     <div id="drop" class="drop" ondragover="event.preventDefault()" ondrop="handleDrop(event)">
       Drag & drop files here<br>(or)
       <div class="row" style="justify-content:center;margin-top:8px">
-        <input id="file" type="file" multiple accept=".json,.mid" />
+  <input id="file" type="file" multiple accept=".json,.mid,.csv,.lab" />
         <button class="btn" onclick="pick()">Choose…</button>
       </div>
     </div>
@@ -50,12 +50,19 @@ async function handleFiles(fileList){
   var files = Array.from(fileList || []);
   if (!files.length){ log('No files.'); return; }
   log('Found ' + files.length + ' file(s).');
+  // Prewarm server-side libraries once to avoid on-demand fetch storms
+  try { await gasCall_('prewarmLibraries'); } catch(_) {}
   for (const f of files){
     try{
-      if (f.name.toLowerCase().endsWith('.json')){
+      const lname = f.name.toLowerCase();
+      if (lname.endsWith('.json')){
         await importJsonFile(f);
-      } else if (f.name.toLowerCase().endsWith('.mid')){
+      } else if (lname.endsWith('.mid')){
         await importMidiFile(f);
+      } else if (lname.endsWith('.csv')){
+        await importLyricsCsvFile(f);
+      } else if (lname.endsWith('.lab')){
+        await importLabFile(f);
       } else {
         log('Skip ' + f.name + ': unsupported extension.');
       }
@@ -78,19 +85,46 @@ async function importJsonFile(file){
   try { obj = JSON.parse(txt); } catch(eStrict) {
     try { obj = JSON.parse(jsonClean_(txt)); } catch(eClean) { obj = null; }
   }
-  const call = google.script.run.withSuccessHandler(function(msg){
+  try{
+    const msg = obj
+      ? await gasCall_('importChordJsonToSheets', obj, hint)
+      : await gasCall_('importChordJsonRaw', txt, hint);
     log('OK ' + file.name + ': ' + msg);
-  }).withFailureHandler(function(e){
-    log('FAIL ' + file.name + ': ' + e);
-  });
-  if (obj) call.importChordJsonToSheets(obj, hint);
-  else call.importChordJsonRaw(txt, hint);
+  } catch(e){
+    log('FAIL ' + file.name + ': ' + (e && e.message ? e.message : e));
+  }
+}
+
+async function importLyricsCsvFile(file){
+  log('CSV → ' + file.name);
+  const txt = await readAsText(file);
+  try{
+    const msg = await gasCall_('importLyricsCsvRaw', txt);
+    log('OK ' + file.name + ': ' + msg);
+  } catch(e){
+    log('FAIL ' + file.name + ': ' + (e && e.message ? e.message : e));
+  }
+}
+
+async function importLabFile(file){
+  log('LAB → ' + file.name);
+  const txt = await readAsText(file);
+  const hint = file.name.replace(/\.[^.]+$/, '');
+  try{
+    const msg = await gasCall_('importChordLabRaw', txt, hint);
+    log('OK ' + file.name + ': ' + msg);
+  } catch(e){
+    log('FAIL ' + file.name + ': ' + (e && e.message ? e.message : e));
+  }
 }
 
 async function importMidiFile(file){
   log('MIDI → ' + file.name);
   if (!window.MidiLib || typeof window.MidiLib.parse !== 'function'){
-    throw new Error('MIDI parser not available (MidiLib).');
+    if (window.MidiLib && window.MidiLib.ready) { await window.MidiLib.ready; }
+    if (!window.MidiLib || typeof window.MidiLib.parse !== 'function'){
+      throw new Error('MIDI parser not available (MidiLib).');
+    }
   }
   const buf = await readAsArrayBuffer(file);
   let midi;
@@ -99,15 +133,32 @@ async function importMidiFile(file){
 
   const reduced = reduceMidi_(midi);
   const hint = file.name.replace(/\.[^.]+$/, '');
-  google.script.run.withSuccessHandler(function(msg){
+  try{
+    const msg = await gasCall_('importMidiJsonToSheets', reduced, hint);
     log('OK ' + file.name + ': ' + msg);
-  }).withFailureHandler(function(e){
-    log('FAIL ' + file.name + ': ' + e);
-  }).importMidiJsonToSheets(reduced, hint);
+  } catch(e){
+    log('FAIL ' + file.name + ': ' + (e && e.message ? e.message : e));
+  }
 }
 
 function reduceMidi_(midi){
-  var out = { meta:{title: (midi && midi.name) || '', ppq: (midi.header && midi.header.ppq) || 480}, tracks: [] };
+  var ppq = (midi && midi.header && (midi.header.ppq || midi.header.ppqn)) || 480;
+  var title = (midi && (midi.name || (midi.header && midi.header.name))) || '';
+  var ts = '4/4', bpm = 120;
+  try {
+    // ToneJS Midi: header.timeSignatures [{ ticks, timeSignature:[n,d] }], header.tempos [{ bpm }]
+    if (midi && midi.header) {
+      if (Array.isArray(midi.header.timeSignatures) && midi.header.timeSignatures.length){
+        var lastTs = midi.header.timeSignatures[midi.header.timeSignatures.length-1];
+        if (lastTs && lastTs.timeSignature && lastTs.timeSignature.length>=2){ ts = lastTs.timeSignature[0] + '/' + lastTs.timeSignature[1]; }
+      }
+      if (Array.isArray(midi.header.tempos) && midi.header.tempos.length){
+        var lastTmp = midi.header.tempos[midi.header.tempos.length-1];
+        if (lastTmp && lastTmp.bpm) { bpm = Math.round(lastTmp.bpm); }
+      }
+    }
+  } catch(_){ }
+  var out = { meta:{ title: title, ppq: ppq, timeSignature: ts, bpm: bpm }, tracks: [] };
   (midi.tracks||[]).forEach(function(t,ti){
     var notes = (t.notes||[]).map(function(n){ return {
       time: n.ticks != null ? n.ticks : (n.time != null ? n.time : 0),
@@ -132,6 +183,14 @@ function jsonClean_(s){
   // Trailing commas before ] or }
   t = t.replace(/,\s*([}\]])/g, '$1');
   return t;
+}
+
+// Promise wrapper for google.script.run calls; ensures sequential awaits in batch
+function gasCall_(fnName){
+  var args = Array.prototype.slice.call(arguments, 1);
+  return new Promise(function(resolve, reject){
+    google.script.run.withSuccessHandler(resolve).withFailureHandler(reject)[fnName].apply(google.script.run, args);
+  });
 }
 </script>
 </body>
