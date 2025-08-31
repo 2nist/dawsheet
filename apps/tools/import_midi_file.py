@@ -4,7 +4,7 @@ from pathlib import Path
 import yaml
 
 from apps.capture.main import Config, process_midi
-from apps.capture.sheets_writer import SheetsWriter
+from dawsheet.io.sheets import SheetsClient
 from apps.tools.format_timeline import format_chart
 
 

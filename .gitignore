@@ -8,6 +8,7 @@ __pycache__/
 # Sensitive files - DO NOT COMMIT
 /credentials.json
 /dawsheet-*.json
+dawsheet-*.json
 key.json
 sa.json
 sa-key.json
