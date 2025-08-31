@@ -11,7 +11,7 @@ from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
 from .midi_ingest import parse_midi
-from .sheets_writer import SheetsWriter
+from dawsheet.io.sheets import SheetsClient, HEADERS
 from .realtime_asr import RealtimeASR
 from .chord_normalize import normalize_symbol
 from .section_detect import infer_sections
@@ -166,7 +166,7 @@ def timecode(t: float) -> str:
     return f"{m:02d}:{s:02d}.{ms:03d}"
 
 
-def process_midi(path: Path, cfg: Config, writer: SheetsWriter) -> str:
+def process_midi(path: Path, cfg: Config, writer: SheetsClient) -> str:
     """Process a MIDI file and return the generated ProjectId."""
     info = parse_midi(path)
     # Optional: snap chord events to downbeats within threshold (beats)
@@ -226,8 +226,15 @@ def process_midi(path: Path, cfg: Config, writer: SheetsWriter) -> str:
                 pass
 
     # write to sheet in batches
-    writer.ensure_headers(cfg.sheet['id'], cfg.sheet['timeline_tab'])
-    writer.append_rows(cfg.sheet['id'], cfg.sheet['timeline_tab'], rows)
+    client = writer
+    timeline_tab = cfg.sheet['timeline_tab']
+    client.ensure_headers(timeline_tab, HEADERS)
+    # Convert list-rows to dicts keyed by HEADERS
+    rows_dicts = []
+    for row in rows:
+        d = {HEADERS[i]: (row[i] if i < len(row) else None) for i in range(len(HEADERS))}
+        rows_dicts.append(d)
+    client.append_rows(timeline_tab, rows_dicts)
 
     # Also write Instruments tab (non-drum notes)
     inst_tab = cfg.sheet.get('instruments_tab', 'Instruments')
@@ -248,8 +255,9 @@ def process_midi(path: Path, cfg: Config, writer: SheetsWriter) -> str:
             project_id,
         ])
     if inst_rows:
-        writer.ensure_tab_headers(cfg.sheet['id'], inst_tab, inst_headers)
-        writer.append_rows_with_headers(cfg.sheet['id'], inst_tab, inst_headers, inst_rows)
+        client._set_headers(inst_tab, inst_headers)
+        inst_dicts = [{inst_headers[i]: row[i] for i in range(len(inst_headers))} for row in inst_rows]
+        client.append_rows(inst_tab, inst_dicts)
 
     # Write Drums tab (channel 10 only)
     drum_tab = cfg.sheet.get('drums_tab', 'Drums')
@@ -269,8 +277,9 @@ def process_midi(path: Path, cfg: Config, writer: SheetsWriter) -> str:
             project_id,
         ])
     if drum_rows:
-        writer.ensure_tab_headers(cfg.sheet['id'], drum_tab, drum_headers)
-        writer.append_rows_with_headers(cfg.sheet['id'], drum_tab, drum_headers, drum_rows)
+        client._set_headers(drum_tab, drum_headers)
+        drum_dicts = [{drum_headers[i]: row[i] for i in range(len(drum_headers))} for row in drum_rows]
+        client.append_rows(drum_tab, drum_dicts)
 
     # exports
     from .exporters import write_exports
@@ -365,7 +374,7 @@ def process_midi(path: Path, cfg: Config, writer: SheetsWriter) -> str:
 
 
 # ---- Routed handlers ----
-def ingest_midi_and_write_sheet(path: pathlib.Path, cfg: Config, writer: SheetsWriter):
+def ingest_midi_and_write_sheet(path: pathlib.Path, cfg: Config, writer: SheetsClient):
     process_midi(Path(path), cfg, writer)
 
 
@@ -384,7 +393,7 @@ def words_to_rows_for_sheet(words_in: List[Dict[str, Any]], tempo_map: List[Dict
     return RealtimeASR.words_to_rows(words, tempo_map, ts_num, pickup_beats, project_id, bpm_default)
 
 
-def write_lyrics_to_sheet_from_text_rows(path: pathlib.Path, cfg: Config, writer: SheetsWriter,
+def write_lyrics_to_sheet_from_text_rows(path: pathlib.Path, cfg: Config, writer: SheetsClient,
                                          words_in: List[Dict[str, Any]]):
     # Try to find a sibling .mid for tempo/ts; else fallback to 120 bpm, 4/4
     midi_sibling = path.with_suffix('.mid')
@@ -402,21 +411,23 @@ def write_lyrics_to_sheet_from_text_rows(path: pathlib.Path, cfg: Config, writer
     rows = words_to_rows_for_sheet(words_in, tempo_map, ts_num, pickup_beats, project_id, bpm_default)
 
     # Ensure headers and append
-    writer.ensure_headers(cfg.sheet['id'], cfg.sheet['timeline_tab'])
-    writer.append_rows(cfg.sheet['id'], cfg.sheet['timeline_tab'], rows)
+    client = writer
+    timeline_tab = cfg.sheet['timeline_tab']
+    client.ensure_headers(timeline_tab, HEADERS)
+    client.append_rows(timeline_tab, rows)
 
 
-def handle_mid(path: pathlib.Path, cfg: Config, writer: SheetsWriter):
+def handle_mid(path: pathlib.Path, cfg: Config, writer: SheetsClient):
     ingest_midi_and_write_sheet(path, cfg, writer)
 
 
-def handle_lrc(path: pathlib.Path, cfg: Config, writer: SheetsWriter):
+def handle_lrc(path: pathlib.Path, cfg: Config, writer: SheetsClient):
     text = Path(path).read_text(encoding='utf-8', errors='ignore')
     words = parse_lrc_to_words(text)
     write_lyrics_to_sheet_from_text_rows(path, cfg, writer, words)
 
 
-def handle_vtt(path: pathlib.Path, cfg: Config, writer: SheetsWriter):
+def handle_vtt(path: pathlib.Path, cfg: Config, writer: SheetsClient):
     text = Path(path).read_text(encoding='utf-8', errors='ignore')
     words = parse_vtt_to_words(text)
     write_lyrics_to_sheet_from_text_rows(path, cfg, writer, words)
@@ -466,7 +477,7 @@ class RoutedHandler(FileSystemEventHandler):
 
 def main(config_path: str):
     cfg = Config(**yaml.safe_load(Path(config_path).read_text(encoding='utf-8')))
-    writer = SheetsWriter(cfg.google_auth)
+    writer = SheetsClient(spreadsheet_id=cfg.sheet['id'])
 
     # optional ASR
     asr = None

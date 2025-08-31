@@ -4,8 +4,7 @@ import csv
 from pathlib import Path
 from typing import List, Any
 
-from dawsheet.io.sheets import SheetsClient
-from apps.capture.sheets_writer import HEADERS
+from dawsheet.io.sheets import SheetsClient, HEADERS
 import yaml
 
 
@@ -42,8 +41,8 @@ def main():
         except Exception:
             creds_json = None
     client = SheetsClient(spreadsheet_id=args.sheet_id)
-    # Ensure headers and append
-    client.ensure_headers(args.sheet_id, HEADERS)
+    # Ensure headers and append — ensure_headers expects a tab name
+    client.ensure_headers(args.tab, HEADERS)
     # Pad or trim rows to header length and convert to dicts
     fixed = []
     for row in rows:

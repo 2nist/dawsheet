@@ -15,7 +15,7 @@ except Exception as e:  # pragma: no cover
     PWTimeout = Exception
 
 from apps.capture.main import Config, process_midi
-from apps.capture.sheets_writer import SheetsWriter
+from dawsheet.io.sheets import SheetsClient
 
 
 def _recent_download(downloads_dir: Path, since_epoch: float) -> Optional[Path]:
@@ -118,7 +118,7 @@ def main():
     # Process into Timeline
     cfg_data = yaml.safe_load(Path(args.config).read_text(encoding='utf-8'))
     cfg = Config(**cfg_data)
-    writer = SheetsWriter(cfg.google_auth)
+    writer = SheetsClient(spreadsheet_id=cfg['sheet']['id'])
     process_midi(midi_path, cfg, writer)
 
 

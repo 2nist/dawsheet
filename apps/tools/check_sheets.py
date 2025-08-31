@@ -4,8 +4,7 @@ from pathlib import Path
 import yaml
 
 # Ensure package imports work when run as a module
-from dawsheet.io.sheets import SheetsClient
-from apps.capture.sheets_writer import HEADERS
+from dawsheet.io.sheets import SheetsClient, HEADERS
 
 
 def main(config_path: str = 'config.yaml') -> int:

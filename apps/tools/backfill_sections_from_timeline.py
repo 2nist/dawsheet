@@ -4,7 +4,7 @@ import yaml
 from pathlib import Path
 from typing import Dict, List, Any
 
-from apps.capture.sheets_writer import SheetsWriter
+from dawsheet.io.sheets import SheetsClient
 
 
 def safe_int(x, default=0):
@@ -14,10 +14,10 @@ def safe_int(x, default=0):
         return default
 
 
-def backfill_sections(sheet_id: str, writer: SheetsWriter) -> Dict[str, Any]:
+def backfill_sections(sheet_id: str, writer: SheetsClient) -> Dict[str, Any]:
     # Read Sections and Timeline
-    sections = writer.get_rows_as_dicts(sheet_id, 'Sections')
-    timeline = writer.get_rows_as_dicts(sheet_id, 'Timeline')
+    sections = writer.read_rows('Sections')
+    timeline = writer.read_rows('Timeline')
 
     # Build earliest bar by section name from Timeline
     earliest_bar: Dict[str, int] = {}
@@ -43,7 +43,7 @@ def backfill_sections(sheet_id: str, writer: SheetsWriter) -> Dict[str, Any]:
 
     # Current headers for Sections
     # Use private method to retrieve actual header order
-    headers = writer._get_headers(sheet_id, 'Sections')  # type: ignore
+    headers = writer._get_headers('Sections')
 
     updated_rows: List[List[Any]] = []
     changes = 0
@@ -72,14 +72,8 @@ def backfill_sections(sheet_id: str, writer: SheetsWriter) -> Dict[str, Any]:
 
     # Write back all rows to Sections (replace existing A2:)
     if sections:
-        svc = writer._get_service()  # type: ignore
-        body = { 'values': updated_rows }
-        svc.spreadsheets().values().update(
-            spreadsheetId=sheet_id,
-            range='Sections!A2',
-            valueInputOption='RAW',
-            body=body,
-        ).execute()
+        # Replace rows using set_rows (preserve header)
+        writer.set_rows('Sections', [ {headers[i]: r[i] for i in range(len(headers))} for r in updated_rows ], headers=headers)
 
     return {'updated_cells': len(updated_rows) * len(headers), 'rows': len(updated_rows), 'changes': changes}
 
@@ -92,7 +86,7 @@ def main():
 
     cfg = yaml.safe_load(Path(args.config).read_text(encoding='utf-8'))
     sheet_id = args.sheet_id or cfg['sheet']['id']
-    writer = SheetsWriter(cfg.get('google_auth', {}))
+    writer = SheetsClient(spreadsheet_id=sheet_id)
 
     res = backfill_sections(sheet_id, writer)
     print(f"[sections] backfill complete → rows={res['rows']} changes={res['changes']} cells={res['updated_cells']}")
