@@ -1,0 +1,18 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Local credentials (service account keys)
+/credentials.json
+/dawsheet-*.json
+
+# Node (if used by webapp)
+node_modules/
+
+# Exports/output
+exports/
+
+# Editor/OS
+.vscode/
+.DS_Store

@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <style>
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+        padding: 12px;
+      }
+      .row {
+        margin-bottom: 10px;
+      }
+      label {
+        font-size: 13px;
+      }
+      button {
+        padding: 6px 10px;
+      }
+      .bar {
+        height: 8px;
+        background: #eee;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 8px 0;
+      }
+      .bar > div {
+        height: 100%;
+        width: 0%;
+        background: #4a90e2;
+        transition: width 0.1s linear;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>DAWSheet • Timeline Controls</h3>
+
+    <div class="row">
+      <h4>Column Visibility</h4>
+      <div>
+        <label><input type="checkbox" data-col="Lyric" checked /> Lyric</label
+        ><br />
+        <label
+          ><input type="checkbox" data-col="Lyric_conf" checked /> Lyric
+          Conf</label
+        ><br />
+        <label
+          ><input type="checkbox" data-col="Chord_conf" checked /> Chord
+          Conf</label
+        ><br />
+        <label
+          ><input type="checkbox" data-col="Section_conf" checked /> Section
+          Conf</label
+        ><br />
+        <label><input type="checkbox" data-col="Source" checked /> Source</label
+        ><br />
+      </div>
+      <button id="apply">Apply</button>
+    </div>
+
+    <div class="row">
+      <h4>Playhead</h4>
+      <div class="bar"><div id="prog"></div></div>
+      <div>
+        <input
+          id="rownum"
+          type="number"
+          min="2"
+          placeholder="Row # (>=2)"
+          style="width: 140px"
+        />
+        <button id="goto">Go</button>
+        <button id="clear">Clear</button>
+      </div>
+    </div>
+
+    <script>
+      // Column visibility
+      document.getElementById("apply").addEventListener("click", () => {
+        const map = {};
+        document
+          .querySelectorAll("input[type=checkbox][data-col]")
+          .forEach((b) => {
+            map[b.dataset.col] = b.checked;
+          });
+        google.script.run.setTimelineVisibility(map);
+      });
+
+      // Playhead controls
+      document.getElementById("goto").addEventListener("click", () => {
+        const v = parseInt(document.getElementById("rownum").value, 10);
+        if (!v || v < 2) return;
+        google.script.run.setPlayhead(v);
+      });
+      document.getElementById("clear").addEventListener("click", () => {
+        google.script.run.clearPlayhead();
+        document.getElementById("prog").style.width = "0%";
+      });
+
+      // Optional: simple progress bar demo driven by playhead row advance
+      // You can hook the MIDI sidebar's scheduler to call setPlayhead() and also update this progress bar.
+      // Here we just expose a small helper to update the bar from Apps Script eval if desired.
+      window.updateProgress = function (pct) {
+        document.getElementById("prog").style.width =
+          Math.max(0, Math.min(100, pct)) + "%";
+      };
+    </script>
+  </body>
+</html>
