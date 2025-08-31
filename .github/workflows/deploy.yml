@@ -1,0 +1,123 @@
+name: Deploy DAWSheet
+
+on:
+  workflow_dispatch:
+    inputs:
+      project_id:
+        description: 'GCP project id (overrides secret GCP_PROJECT)'
+        required: false
+      spreadsheet_id:
+        description: 'Spreadsheet id (overrides secret SHEET_ID)'
+        required: false
+      region:
+        description: 'GCP region for Cloud Functions'
+        required: false
+        default: 'us-central1'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore Service Account key (optional)
+        id: restore
+        env:
+          SA_KEY_B64: ${{ secrets.DAWSHEET_SA_KEY_B64 }}
+          SA_KEY_JSON: ${{ secrets.DAWSHEET_SA_KEY }}
+        run: |
+          set -e
+          HAS_SA=false
+          # Prefer raw JSON secret, else use base64 encoded secret
+          if [ -n "$SA_KEY_JSON" ]; then
+            echo "$SA_KEY_JSON" > /tmp/dawsheet-sa.json
+            HAS_SA=true
+          elif [ -n "$SA_KEY_B64" ]; then
+            echo "$SA_KEY_B64" | base64 --decode > /tmp/dawsheet-sa.json
+            HAS_SA=true
+          else
+            echo "Warning: No service account key provided in secrets (DAWSHEET_SA_KEY or DAWSHEET_SA_KEY_B64)."
+            echo "Skipping steps that require GCP authentication. To run full deploy, add DAWSHEET_SA_KEY or DAWSHEET_SA_KEY_B64 to repo secrets."
+          fi
+          echo "has_sa=$HAS_SA" >> $GITHUB_OUTPUT
+
+      - name: Setup gcloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ github.event.inputs.project_id || secrets.GCP_PROJECT || 'dawsheet' }}
+
+      - name: Authenticate gcloud (if service account provided)
+        if: ${{ steps.restore.outputs.has_sa == 'true' }}
+        run: |
+          echo "Authenticating gcloud using /tmp/dawsheet-sa.json"
+          gcloud auth activate-service-account --key-file=/tmp/dawsheet-sa.json
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 18
+
+      - name: Install clasp
+        run: |
+          npm install -g @google/clasp
+
+      - name: Deploy Cloud Function: publishOutbox (only if service account available)
+        if: ${{ steps.restore.outputs.has_sa == 'true' }}
+        env:
+          PROJECT_ID: ${{ github.event.inputs.project_id || secrets.GCP_PROJECT || 'dawsheet' }}
+          SPREADSHEET_ID: ${{ github.event.inputs.spreadsheet_id || secrets.SHEET_ID || '1MMyTM8t269r_zEvvT_z3qZkx5GXhDydCG9KRc7lCDDM' }}
+          SA_EMAIL: ${{ secrets.DAWSHEET_SA_EMAIL }}
+          REGION: ${{ github.event.inputs.region || 'us-central1' }}
+        run: |
+          if [ -z "$PROJECT_ID" ]; then
+            echo "Project ID not provided via workflow input or secret GCP_PROJECT" >&2
+            exit 1
+          fi
+          if [ -z "$SPREADSHEET_ID" ]; then
+            echo "Spreadsheet ID not provided via workflow input or secret SHEET_ID" >&2
+            exit 1
+          fi
+          if [ -z "$SA_EMAIL" ]; then
+            echo "Service account email not provided in secret DAWSHEET_SA_EMAIL" >&2
+            exit 1
+          fi
+
+          gcloud functions deploy publishOutbox \
+            --entry-point=handler \
+            --runtime=node18 \
+            --trigger-http \
+            --region=$REGION \
+            --service-account=$SA_EMAIL \
+            --set-env-vars="SPREADSHEET_ID=$SPREADSHEET_ID,DELETE_AFTER_PUBLISH=true" \
+            --project=$PROJECT_ID \
+            --quiet
+
+  # Note: Apps Script `clasp push` step removed to avoid permission failures during CI.
+  # If you want to restore it later, re-add a step that runs `clasp login` and `clasp push`.
+
+      - name: Prepare artifacts (always run)
+        run: |
+          set -e
+          mkdir -p /tmp/dawsheet-artifacts
+          # Package existing deploy source zips if present, else create zips for inspection
+          if [ -d "deploy/source" ]; then
+            (cd deploy && zip -r /tmp/dawsheet-artifacts/publish_outbox.zip source || true)
+          fi
+          if [ -d "apps/gas" ]; then
+            (cd apps/gas && zip -r /tmp/dawsheet-artifacts/gas_app.zip . || true)
+          fi
+          # Upload a small listing so it's easy to debug what was created
+          ls -la /tmp/dawsheet-artifacts || true
+
+      - name: Upload artifacts for debugging
+        uses: actions/upload-artifact@v4
+        with:
+          name: dawsheet-deploy-artifacts
+          path: /tmp/dawsheet-artifacts
+
+      - name: Cleanup
+        if: always()
+        run: |
+          rm -f /tmp/dawsheet-sa.json || true

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>body{font-family:Poppins,sans-serif;background:#fbf8f1;margin:12px;font-size:12px}
+.card{background:#fff;border:1px solid #e3dccb;border-radius:10px;padding:10px;margin-bottom:10px}
+input,button,select{font-size:12px}.btn{border:1px solid #cfc6ad;background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
+.btn.primary{background:#2a74ff;color:#fff;border-color:#2a74ff}table{width:100%;border-collapse:collapse}
+th,td{border:1px solid #e3dccb;padding:6px;text-align:left}th{background:#f7f3e9}</style></head>
+<body>
+<div class="card"><b>Chord Substitution</b><br>Pick a Song ID from Song_Library:
+  <div style="display:flex;gap:6px;margin-top:6px">
+    <input id="songId" placeholder="songId">
+    <button class="btn primary" onclick="run()">Suggest</button>
+  </div>
+</div>
+<div class="card"><table id="tbl"><thead><tr><th>#</th><th>Chord</th><th>Roman</th><th>Suggestions</th></tr></thead><tbody></tbody></table></div>
+<script>
+function run(){
+  const id = document.getElementById('songId').value.trim();
+  google.script.run.withSuccessHandler(rows=>{
+    const tb = document.querySelector('#tbl tbody'); tb.innerHTML='';
+    rows.forEach(r=>{
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${r.index}</td><td>${r.chord}</td><td>${r.roman}</td><td>${r.suggestions.join(', ')}</td>`;
+      tb.appendChild(tr);
+    });
+  }).withFailureHandler(e=>alert(e)).cs_getForSong(id);
+}
+</script></body></html>

@@ -1,0 +1,49 @@
+name: Deploy Apps Script (clasp)
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch: {}
+
+jobs:
+  deploy:
+    name: Deploy Apps Script via clasp
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Restore SA key
+        run: echo "${{ secrets.SA_KEY }}" | base64 --decode > "$GITHUB_WORKSPACE/sa.json"
+
+      - name: Generate .clasp.json in apps/gas
+        run: |
+          mkdir -p apps/gas
+          echo "{\"scriptId\": \"${{ secrets.SCRIPT_ID }}\", \"rootDir\": \"\"}" > apps/gas/.clasp.json
+
+      - name: Verify sa.json and .clasp.json
+        run: |
+          echo "Listing sa.json location and size:"
+          ls -l "$GITHUB_WORKSPACE/sa.json" || true
+          echo "sa.json type field (should be 'service_account'):" 
+          node -e "try{console.log(require(process.env.GITHUB_WORKSPACE + '/sa.json').type)}catch(e){console.error('failed to read sa.json:', e.message); exit(0)}"
+          echo "---- .clasp.json ----"
+          cat apps/gas/.clasp.json || true
+
+      - name: Install googleapis
+        run: npm install googleapis
+
+      - name: Deploy via Apps Script API
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/sa.json
+        run: node scripts/deploy-apps-script.js "${{ secrets.SCRIPT_ID }}" apps/gas
+
+      - name: Cleanup
+        if: always()
+        run: |
+          shred -u "$GITHUB_WORKSPACE/sa.json" || rm -f "$GITHUB_WORKSPACE/sa.json" || true

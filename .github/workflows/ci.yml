@@ -2,18 +2,19 @@ name: CI
 
 on:
   push:
-    branches: [feature/**, main]
+    branches: [ feature/**, main ]
   pull_request:
-    branches: [main]
+    branches: [ main ]
 
 jobs:
-  test:
+  # Python tests for DAWSheet-Project components
+  python-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.11"
+          python-version: '3.11'
       - name: Install minimal test deps
         run: |
           python -m pip install --upgrade pip
@@ -21,3 +22,73 @@ jobs:
       - name: Run tests
         run: |
           pytest -q
+
+  schema-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install tools
+        run: npm -g i ajv-cli@5
+      - name: Validate schemas compile
+        run: |
+          ajv compile -s spec/commands.schema.json
+          ajv compile -s spec/song.schema.json
+          ajv compile -s spec/chord.schema.json
+          ajv compile -s spec/scale.schema.json
+
+  codegen-and-drift-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install deps (if any)
+        run: |
+          if [ -f package.json ]; then npm ci; fi
+      - name: Run schema-derived generators
+        run: |
+          if [ -f tools/generate-types.mjs ]; then node tools/generate-types.mjs; fi
+      - name: Fail on generated diff
+        run: |
+          if [ -n "$(git status --porcelain)" ]; then
+            echo "::error::Generated files are stale. Run generators and commit outputs."
+            git status --porcelain
+            exit 1
+          fi
+
+  gas-lint-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Lint/Typecheck GAS (if configured)
+        run: |
+          if [ -f apps/gas/package.json ]; then
+            cd apps/gas
+            npm ci
+            npm run lint --if-present
+            npm run typecheck --if-present
+          fi
+
+  proxy-java-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '21'
+      - name: Build & Test Proxy (if Gradle exists)
+        run: |
+          if [ -f apps/proxy-java/gradlew ]; then
+            cd apps/proxy-java
+            ./gradlew build --no-daemon
+          else
+            echo "Gradle wrapper not found yet; skipping."
+          fi

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>body{font-family:Poppins,sans-serif;background:#fbf8f1;margin:12px;font-size:12px}
+.card{background:#fff;border:1px solid #e3dccb;border-radius:10px;padding:10px;margin-bottom:10px}
+.btn{border:1px solid #cfc6ad;background:#fff;border-radius:8px;padding:6px 10px;cursor:pointer}
+.btn.primary{background:#2a74ff;color:#fff;border-color:#2a74ff}</style></head>
+<body>
+<?!= HtmlService.createHtmlOutputFromFile('midi_iife').getContent(); ?>
+<div class="card"><b>Syncopation Heatmap</b>
+  <div>Pick .mid → we’ll compute off-beat hits.</div>
+  <div style="display:flex;gap:6px;margin-top:6px"><input id="file" type="file" accept=".mid"><button class="btn primary" onclick="go()">Analyze</button></div>
+</div>
+<div class="card" id="msg">Ready.</div>
+<script>
+async function go(){
+  const f=document.getElementById('file').files[0];
+  if(!f) return alert('Choose a MIDI file.');
+  if(!window.MidiLib||typeof MidiLib.parse!=='function') return alert('MIDI parser not available.');
+  const buf=await f.arrayBuffer();
+  let midi; try{ midi = MidiLib.parse(new Uint8Array(buf)); }catch(e){ return alert('Parse failed'); }
+  // time signature detection from header if present
+  const ppq = (midi.header && (midi.header.ppq||midi.header.ppqn))||480;
+  let beatsPerBar = 4;
+  try{
+    if (Array.isArray(midi.header.timeSignatures) && midi.header.timeSignatures.length){
+      const ts = midi.header.timeSignatures[midi.header.timeSignatures.length-1].timeSignature;
+      if (Array.isArray(ts) && ts.length>=2){ beatsPerBar = Math.round(ts[0]*(4/ts[1])); }
+    }
+  }catch(_){ }
+  const sub=4; // 16th
+  const bars = 16;
+  const grid = Array.from({length:beatsPerBar*sub}, ()=>Array(bars).fill(0));
+  (midi.tracks||[]).forEach(t=>{
+    (t.notes||[]).forEach(n=>{
+      const ticks = (n.ticks!=null) ? n.ticks : Math.round((n.time||0)*ppq);
+      const bar = Math.floor(ticks/(ppq*beatsPerBar));
+      if(bar<bars && bar>=0){
+        const within = ticks % (ppq*beatsPerBar);
+        const slot = Math.floor(within/(ppq/sub));
+        if (slot>=0 && slot<grid.length) grid[slot][bar] += 1;
+      }
+    });
+  });
+  google.script.run.withSuccessHandler(a1=>{
+    document.getElementById('msg').textContent='Wrote heatmap at '+a1;
+  }).withFailureHandler(e=>{
+    document.getElementById('msg').textContent=String(e);
+  }).sync_writeHeatmap('Syncopation_Heatmap', grid);
+}
+</script></body></html>

@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dawsheet.dev/spec/song.schema.json",
+  "title": "DAWSheet Song Object v1",
+  "type": "object",
+  "required": ["v", "songId", "meta", "sections", "arrangement"],
+  "additionalProperties": false,
+  "properties": {
+    "v": {"const": 1},
+    "songId": {"type": "string", "description": "Unique identifier for the song, typically derived from the sheet row."},
+    "meta": {
+      "type": "object",
+      "required": ["title","bpm","key"],
+      "properties": {
+        "title": {"type":"string"},
+        "artist": {"type":"string"},
+        "bpm": {"type":"number","minimum":1},
+        "key": {"type":"string","description":"e.g., C, D#, Fm"},
+        "mode": {"type":"string","description":"Ionian/Dorian/..."},
+        "timeSignature": {"type":"string","pattern": "^\\d+/\\d+$"},
+        "tags": {"type":"array","items":{"type":"string"}},
+        "notes": {"type":"string"}
+      },
+      "additionalProperties": true
+    },
+    "sections": {
+      "type": "array",
+      "items": {"$ref":"#/$defs/section"}
+    },
+    "arrangement": {
+      "type": "array",
+      "items": {"$ref":"#/$defs/arrangementItem"}
+    },
+    "commands_ref": {
+      "type":"array",
+      "description":"Optional direct references to command groups/macros/scenes",
+      "items":{"type":"string"}
+    }
+  },
+  "$defs": {
+    "section": {
+      "type":"object",
+      "required": ["sectionId","sectionName","lengthBars"],
+      "properties": {
+        "sectionId":{"type":"string","description":"Unique ID for this section within a song."},
+        "sectionName":{"type":"string","description":"Verse, Chorus, Bridge, etc."},
+        "lengthBars":{"type":"number","minimum":0},
+        "chords":{"type":"array","items":{"$ref":"#/$defs/chord"}},
+        "lyricsRef":{"type":"string"},
+        "notes":{"type":"string"}
+      },
+      "additionalProperties": true
+    },
+    "chord": {
+      "type":"object",
+      "required":["symbol","beats"],
+      "properties": {
+        "symbol":{"type":"string","description":"The symbolic representation of the chord (e.g., Cmaj7, Dm)."},
+        "beats":{"type":"number","minimum":0.25},
+        "roman":{"type":"string","description":"optional roman numeral"},
+        "scale":{"type":"string","description":"optional scale/mode hint"},
+        "notes": {"type": "array", "items": {"type": "string"}, "description": "Optional: Specific notes making up the chord (e.g., for detected chords)."},
+        "quality": {"type": "string", "description": "Optional: Detected or specified chord quality (e.g., major, minor, dominant, diminished)."}
+      },
+      "additionalProperties": false
+    },
+    "arrangementItem": {
+      "type":"object",
+      "required":["arrangementIndex","sectionId","startBar"],
+      "properties": {
+        "arrangementIndex":{"type":"number","minimum":1},
+        "sectionId":{"type":"string","description":"ID must match a section.sectionId"},
+        "startBar":{"type":"number","minimum":1},
+        "repeat":{"type":"integer","minimum":1,"default":1},
+        "sceneRef":{"type":"string","description":"optional DAWSheet scene id"},
+        "macroRef":{"type":"string","description":"optional DAWSheet macro id"}
+      },
+      "additionalProperties": false
+    }
+  },
+  "examples": [{
+    "v":1,
+    "songId": "example-song-001",
+    "meta":{"title":"Demo Song","artist":"You","bpm":100,"key":"D","mode":"Dorian","timeSignature":"4/4","tags":["demo"]},
+    "sections":[
+      {"sectionId": "verse-a", "name":"Verse","lengthBars":8,"chords":[{"symbol":"Dm7","beats":4},{"symbol":"G7","beats":4}]},
+      {"sectionId": "chorus-a", "name":"Chorus","lengthBars":8,"chords":[{"symbol":"Cmaj7","beats":8}]}
+    ],
+    "arrangement":[
+      {"arrangementIndex":1,"sectionId":"verse-a","startBar":1},
+      {"arrangementIndex":2,"sectionId":"chorus-a","startBar":9,"repeat":2}
+    ],
+    "commands_ref":["scene:intro","macro:buildA"]
+  }]
+}

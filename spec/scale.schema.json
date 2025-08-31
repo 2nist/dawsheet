@@ -1,0 +1,17 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dawsheet.dev/spec/scale.schema.json",
+  "title": "DAWSheet Scale Object v1",
+  "type": "object",
+  "required": ["name", "tonic", "intervals"],
+  "properties": {
+    "name": {"type": "string", "description": "The name of the scale (e.g., 'Major', 'Dorian')."},
+    "tonic": {"type": "string", "description": "The root note of the scale (e.g., 'C', 'Bb')."},
+    "intervals": {"type": "array", "items": {"type": "string"}, "description": "The intervals that define the scale from its tonic (e.g., ['1P', '2M', '3M', '4P', '5P', '6M', '7M'])."}
+  },
+  "additionalProperties": false,
+  "examples": [
+    {"name": "Major", "tonic": "C", "intervals": ["1P", "2M", "3M", "4P", "5P", "6M", "7M"]},
+    {"name": "Dorian", "tonic": "D", "intervals": ["1P", "2M", "3m", "4P", "5P", "6M", "7m"]}
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://dawsheet.dev/spec/chord.schema.json",
+  "title": "DAWSheet Chord Object v1",
+  "type": "object",
+  "required": ["symbol", "beats"],
+  "properties": {
+    "symbol": {"type": "string", "description": "The symbolic representation of the chord (e.g., Cmaj7, Dm)."},
+    "beats": {"type": "number", "minimum": 0.25, "description": "Duration of the chord in beats."},
+    "roman": {"type": "string", "description": "Optional: Roman numeral analysis of the chord."},
+    "scale": {"type": "string", "description": "Optional: Hint for associated scale/mode."},
+    "notes": {"type": "array", "items": {"type": "string"}, "description": "Optional: Specific notes making up the chord (e.g., for detected chords)."},
+    "quality": {"type": "string", "description": "Optional: Detected or specified chord quality (e.g., major, minor, dominant, diminished)."}
+  },
+  "additionalProperties": false,
+  "examples": [
+    {"symbol": "Cmaj7", "beats": 4, "notes": ["C4", "E4", "G4", "B4"], "quality": "major seventh"},
+    {"symbol": "Am", "beats": 2}
+  ]
+}

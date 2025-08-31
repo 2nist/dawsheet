@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8">
+<style>body{font-family:Poppins,sans-serif;background:#fbf8f1;margin:12px;font-size:12px}
+.card{background:#fff;border:1px solid #e3dccb;border-radius:10px;padding:10px;margin-bottom:10px}
+input,button{font-size:12px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}</style></head>
+<body>
+<div class="card"><b>Comparative Analyzer</b>
+  <div class="grid">
+    <div><input id="a" placeholder="songId A"></div>
+    <div><input id="b" placeholder="songId B"></div>
+  </div>
+  <button onclick="run()">Compare</button>
+</div>
+<div class="card" id="out"></div>
+<script>
+function run(){
+  const a=document.getElementById('a').value.trim();
+  const b=document.getElementById('b').value.trim();
+  google.script.run.withSuccessHandler(res=>{
+    const A=res.A,B=res.B;
+    const topA = A.chordCount.slice(0,6).map(x=>x.join(': ')).join(', ');
+    const topB = B.chordCount.slice(0,6).map(x=>x.join(': ')).join(', ');
+    document.getElementById('out').innerHTML =
+      `<b>${A.title}</b> (key ${A.key}, bpm ${A.bpm})<br>`+
+      `Top chords: ${topA}<br>Total bars: ${A.totalBars}<br>Form: ${A.form.map(f=>f.sectionId+'×'+f.repeat).join(' → ')}<hr>`+
+      `<b>${B.title}</b> (key ${B.key}, bpm ${B.bpm})<br>`+
+      `Top chords: ${topB}<br>Total bars: ${B.totalBars}<br>Form: ${B.form.map(f=>f.sectionId+'×'+f.repeat).join(' → ')}`;
+  }).withFailureHandler(e=>alert(e)).cmp_compare(a,b);
+}
+</script></body></html>
