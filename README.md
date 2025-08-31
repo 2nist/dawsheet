@@ -1,4 +1,5 @@
 <<<<<<< HEAD
+
 # DAWSheet Pipeline (MIDI ➜ Live Capture)
 
 MVP to ingest Chordify MIDI, optionally run real-time ASR, write rows to a Google Sheet timeline, infer sections, and export files.
@@ -30,8 +31,6 @@ Watcher notes:
 
 ## Sheet Schema (Timeline)
 
-Bar | Beat | BeatAbs | Time_s | Timecode | Chord | Section | Dur_beats | Dur_s | Lyric | Lyric_conf | EventType | WordStart_s | WordEnd_s | SubIdx | Melisma | Chord_conf | Section_conf | Source | ProjectId | EventId
-
 If headers are missing, they’ll be created (writer upgrades or use Apps Script installLyricWordColumns()).
 
 ````markdown
@@ -39,7 +38,6 @@ If headers are missing, they’ll be created (writer upgrades or use Apps Script
 
 This walks you from zero to sound: set up Pub/Sub, deploy the Sheet script, run the proxy, and trigger a note.
 
-### 1) Google Cloud setup
 
 - Make sure the Pub/Sub API is enabled for your project.
 - Create topics and a subscription (replace `<PROJECT_ID>`):
@@ -51,17 +49,23 @@ This walks you from zero to sound: set up Pub/Sub, deploy the Sheet script, run 
 & "h:\My Drive\dawsheet\dawsheet\google-cloud-sdk\bin\gcloud.cmd" pubsub subscriptions create dawsheet.commands-sub --topic dawsheet.commands
 ```
 
-Authenticate for local dev (pick one):
-
 - User creds:
 
 ```powershell
 & "h:\My Drive\dawsheet\dawsheet\google-cloud-sdk\bin\gcloud.cmd" auth application-default login
 ```
 
-- Or service account:
+# DAWSheet — Spreadsheet-first DAW bridge
 
-	- Set `GOOGLE_APPLICATION_CREDENTIALS` to a JSON key with Pub/Sub Subscriber.
+Lightweight tools to import, analyze, and export musical project data between Google Sheets and DAWs.
+
+Key developer docs:
+
+- `README.pipeline.md` — pipeline notes and CI guidance
+- `PLAN.md` — roadmap and next steps
+
+Security:
+- Do not commit service account JSON files. Use environment variables or encrypted CI secrets.
 
 ### 2) Install and push the Google Apps Script
 

@@ -1,45 +1,13 @@
-<<<<<<< HEAD
-
-# Python
-.venv/
-__pycache__/
-*.pyc
-
-# Sensitive files - DO NOT COMMIT
-/credentials.json
-/dawsheet-*.json
-key.json
-sa.json
-sa-key.json
-sa_key_base64.txt
-*.p12
-*.pem
-.env
-.env.local
-.env.production
-
-# Python
-.venv/
-__pycache__/
-*.pyc
-
-# Local credentials (service account keys)
-/credentials.json
-/dawsheet-*.json
-
-# Node (if used by webapp)
-node_modules/
-
-# Exports/output
-exports/
-
-# Editor/OS
-.vscode/
-.DS_Store
-=======
 # --- DAWSheet .gitignore ---
 
+# Python
+.venv/
+__pycache__/
+*.pyc
+
 # Sensitive files - DO NOT COMMIT
+/credentials.json
+/dawsheet-*.json
 key.json
 sa.json
 sa-key.json
@@ -123,14 +91,17 @@ docs/.doctrees/
 # Backup files
 *.bak
 *.backup
-*~
+~*
+
+# Exports/output
+exports/
 
 # Generated files that should not be versioned
 apps/gas/.clasp.json
 
 # Local Google Cloud SDK (don't commit the full SDK)
-google-cloud-sdk/
+
 
 # Workspace/Editor files
 *.code-workspace
->>>>>>> origin/main
+*.cache
