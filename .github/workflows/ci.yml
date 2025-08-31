@@ -6,12 +6,30 @@ on:
   pull_request:
     branches: [main]
 
+# Skip CI when only archive/ files changed
+# This uses a lightweight step in each job; jobs can early-exit quickly.
+
 jobs:
   # Python tests for DAWSheet-Project components
   python-tests:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check for non-archive changes
+        id: check_changes
+        run: |
+          # If only files under archive/ changed, exit early
+          git fetch --no-tags --depth=1 origin ${{ github.ref }} || true
+          CHANGED=$(git diff --name-only HEAD^ HEAD || git diff --name-only origin/${{ github.base_ref }}...HEAD || true)
+          echo "changed=$CHANGED"
+          if [ -z "$CHANGED" ]; then
+            echo "No changes detected; continuing full CI."
+          elif echo "$CHANGED" | grep -vE '^archive/' >/dev/null; then
+            echo "Non-archive changes detected; continuing CI."
+          else
+            echo "Only archive/ changed; skipping job."
+            exit 0
+          fi
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
@@ -27,6 +45,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check for non-archive changes
+        id: check_changes
+        run: |
+          CHANGED=$(git diff --name-only HEAD^ HEAD || git diff --name-only origin/${{ github.base_ref }}...HEAD || true)
+          if [ -z "$CHANGED" ]; then
+            echo "No changes detected; continuing full CI."
+          elif echo "$CHANGED" | grep -vE '^archive/' >/dev/null; then
+            echo "Non-archive changes detected; continuing CI."
+          else
+            echo "Only archive/ changed; skipping job."
+            exit 0
+          fi
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -43,6 +73,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check for non-archive changes
+        id: check_changes
+        run: |
+          CHANGED=$(git diff --name-only HEAD^ HEAD || git diff --name-only origin/${{ github.base_ref }}...HEAD || true)
+          if [ -z "$CHANGED" ]; then
+            echo "No changes detected; continuing full CI."
+          elif echo "$CHANGED" | grep -vE '^archive/' >/dev/null; then
+            echo "Non-archive changes detected; continuing CI."
+          else
+            echo "Only archive/ changed; skipping job."
+            exit 0
+          fi
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -64,6 +106,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check for non-archive changes
+        id: check_changes
+        run: |
+          CHANGED=$(git diff --name-only HEAD^ HEAD || git diff --name-only origin/${{ github.base_ref }}...HEAD || true)
+          if [ -z "$CHANGED" ]; then
+            echo "No changes detected; continuing full CI."
+          elif echo "$CHANGED" | grep -vE '^archive/' >/dev/null; then
+            echo "Non-archive changes detected; continuing CI."
+          else
+            echo "Only archive/ changed; skipping job."
+            exit 0
+          fi
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -80,6 +134,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - name: Check for non-archive changes
+        id: check_changes
+        run: |
+          CHANGED=$(git diff --name-only HEAD^ HEAD || git diff --name-only origin/${{ github.base_ref }}...HEAD || true)
+          if [ -z "$CHANGED" ]; then
+            echo "No changes detected; continuing full CI."
+          elif echo "$CHANGED" | grep -vE '^archive/' >/dev/null; then
+            echo "Non-archive changes detected; continuing CI."
+          else
+            echo "Only archive/ changed; skipping job."
+            exit 0
+          fi
       - uses: actions/setup-java@v4
         with:
           distribution: "temurin"
