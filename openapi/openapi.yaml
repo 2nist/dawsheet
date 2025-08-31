@@ -1,0 +1,97 @@
+openapi: 3.0.3
+info:
+  title: DAWSheet Internal API
+  version: '1.0.0'
+  description: API for importing SongRecord v1 and a healthcheck endpoint
+servers:
+  - url: http://localhost:8000
+paths:
+  /healthz:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+  /import/songrecord:
+    post:
+      summary: Import a SongRecord (v1)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SongRecord'
+      parameters:
+        - in: query
+          name: sheet_id
+          schema:
+            type: string
+          description: Optional spreadsheet id to write to (overrides env)
+        - in: query
+          name: tab
+          schema:
+            type: string
+            default: Timeline
+          description: Sheet tab name
+      responses:
+        '202':
+          description: Accepted - rows queued for write
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  written:
+                    type: integer
+        '400':
+          description: Validation error
+components:
+  schemas:
+    Event:
+      type: object
+      properties:
+        beat_abs:
+          type: number
+        time_s:
+          type: number
+        timecode:
+          type: string
+        chord:
+          type: string
+        section:
+          type: string
+        dur_beats:
+          type: number
+        dur_s:
+          type: number
+        lyric:
+          type: string
+        event_id:
+          type: string
+      required: [beat_abs, time_s, chord]
+    SongRecord:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        artist:
+          type: string
+        source:
+          type: string
+        project_id:
+          type: string
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/Event'
+      required: [id, title, events]
