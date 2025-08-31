@@ -1,0 +1,25 @@
+name: MIR and ASR nightly
+
+on:
+  schedule:
+    - cron: '0 4 * * *'
+  workflow_dispatch:
+
+jobs:
+  mir-asr:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install heavy MIR/ASR deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-mir.txt || true
+          pip install -r requirements-asr.txt || true
+      - name: Run MIR/ASR smoke tasks
+        run: |
+          echo "Running MIR/ASR nightly tasks (placeholder)"
+          # Insert real MIR/ASR smoke scripts here when available

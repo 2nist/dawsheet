@@ -1,0 +1,4 @@
+# MIR heavy extras
+madmom>=0.16
+librosa>=0.10
+mido>=1.3

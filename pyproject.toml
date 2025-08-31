@@ -1,0 +1,16 @@
+[project]
+name = "dawsheet"
+version = "0.0.0"
+description = "DAWSheet project"
+
+[project.optional-dependencies]
+asr = [
+  "whisperx>=4",
+  "aeneas>=1.7",
+  "faster-whisper>=1.0",
+]
+mir = [
+  "madmom>=0.16",
+  "librosa>=0.10",
+  "mido>=1.3",
+]
