@@ -2,9 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ feature/**, main ]
+    branches: [feature/**, main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   test:
@@ -13,7 +13,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.11'
+          python-version: "3.11"
       - name: Install minimal test deps
         run: |
           python -m pip install --upgrade pip

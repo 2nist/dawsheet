@@ -98,6 +98,9 @@ function download(base) {
 
 function openSheet() {
   const sid = getSheetId();
-  if (!sid) { alert('Enter Sheet ID'); return; }
+  if (!sid) {
+    alert("Enter Sheet ID");
+    return;
+  }
   window.open(`https://docs.google.com/spreadsheets/d/${sid}/edit`, "_blank");
 }
