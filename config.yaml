@@ -60,9 +60,9 @@ project:
   id_prefix: "CFY"
 bridge:
   # OSC settings for REAPER bridge (from main repo)
-  osc_ip: '127.0.0.1'
+  osc_ip: "127.0.0.1"
   osc_port: 9000
   # Local HTTP server settings (if used)
-  bind: '127.0.0.1'
+  bind: "127.0.0.1"
   port: 5000
-  shared_secret: ''
+  shared_secret: ""
