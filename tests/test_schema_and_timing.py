@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from apps.capture.sheets_writer import upgrade_headers, HEADERS
+from dawsheet.io.sheets import upgrade_headers, HEADERS
 from shared.timing import map_time_to_beat
 from shared.lyrics_utils import subindex, is_melisma
 

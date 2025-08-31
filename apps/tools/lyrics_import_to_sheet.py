@@ -4,7 +4,7 @@ import csv
 from pathlib import Path
 from typing import List, Any
 
-from apps.capture.sheets_writer import SheetsWriter, HEADERS
+from dawsheet.io.sheets import SheetsClient, HEADERS
 import yaml
 
 
@@ -40,16 +40,15 @@ def main():
             creds_json = cfg.get('google_auth', {}).get('credentials_json')
         except Exception:
             creds_json = None
-    writer = SheetsWriter({"credentials_json": creds_json} if creds_json else {})
-    # Ensure headers and append
-    writer.ensure_headers(args.sheet_id, args.tab)
-    # Pad or trim rows to header length
+    client = SheetsClient(spreadsheet_id=args.sheet_id)
+    # Ensure headers and append — ensure_headers expects a tab name
+    client.ensure_headers(args.tab, HEADERS)
+    # Pad or trim rows to header length and convert to dicts
     fixed = []
     for row in rows:
-        # Coerce to header length with None padding
-        out = list(row[:len(HEADERS)]) + [None] * max(0, len(HEADERS) - len(row))
+        out = {HEADERS[i]: (row[i] if i < len(row) else None) for i in range(len(HEADERS))}
         fixed.append(out)
-    writer.append_rows(args.sheet_id, args.tab, fixed)
+    client.append_rows(args.tab, fixed)
     print(f"[import] Imported {len(fixed)} rows → {args.sheet_id}:{args.tab}")
 
 

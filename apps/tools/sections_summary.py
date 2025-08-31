@@ -4,17 +4,13 @@ from pathlib import Path
 import yaml
 from typing import List, Dict, Any
 
-from apps.capture.sheets_writer import SheetsWriter
+from dawsheet.io.sheets import SheetsClient
 
 
-def fetch_timeline(writer: SheetsWriter, sheet_id: str, tab: str) -> Dict[str, Any]:
-    svc = writer._get_service()
-    # Read header row
-    hdr_resp = svc.spreadsheets().values().get(spreadsheetId=sheet_id, range=f"{tab}!1:1").execute()
-    headers = hdr_resp.get('values', [[]])[0] if hdr_resp.get('values') else []
-    # Read data rows
-    resp = svc.spreadsheets().values().get(spreadsheetId=sheet_id, range=f"{tab}!A2:U").execute()
-    rows = resp.get('values', [])
+def fetch_timeline(client: SheetsClient, tab: str) -> Dict[str, Any]:
+    headers = client._get_headers(tab)
+    dict_rows = client.read_rows(tab)
+    rows = [[r.get(h, '') for h in headers] for r in dict_rows]
     return {"headers": headers, "rows": rows}
 
 
@@ -96,11 +92,9 @@ def main(config_path: str = 'config.yaml') -> int:
     sheet_id = cfg['sheet']['id']
     tab = cfg['sheet'].get('timeline_tab', 'Timeline')
 
-    writer = SheetsWriter(cfg.get('google_auth', {}))
-    writer.ensure_headers(sheet_id, tab)
-
-    data = fetch_timeline(writer, sheet_id, tab)
-    print(summarize_sections(data))
+        client = SheetsClient(spreadsheet_id=sheet_id)
+        data = fetch_timeline(client, tab)
+        print(summarize_sections(data))
     return 0
 
 

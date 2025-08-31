@@ -24,6 +24,7 @@ python -m apps.capture.main --config config.yaml
 Drop a .mid into your configured watch_dir.
 
 Watcher notes:
+
 - The watcher reacts to .mid / .lrc / .vtt only. Add more by editing config midi.allowed_exts.
 - Partial downloads are ignored until file size is stable.
 

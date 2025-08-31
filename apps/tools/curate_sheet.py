@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Dict, List, Tuple
 import yaml
 
-from apps.capture.sheets_writer import SheetsWriter, HEADERS as TIMELINE_HEADERS
+from dawsheet.io.sheets import SheetsClient, HEADERS as TIMELINE_HEADERS
 
 
 # Canonical tab headers
@@ -66,8 +66,8 @@ def load_cfg(config_path: str) -> dict:
     return yaml.safe_load(p.read_text(encoding="utf-8"))
 
 
-def list_tabs(writer: SheetsWriter, spreadsheet_id: str) -> List[Tuple[int, str]]:
-    svc = writer._get_service()
+def list_tabs(client: SheetsClient, spreadsheet_id: str) -> List[Tuple[int, str]]:
+    svc = client._get_service()
     meta = svc.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
     out: List[Tuple[int, str]] = []
     for sh in meta.get("sheets", []):
@@ -76,11 +76,11 @@ def list_tabs(writer: SheetsWriter, spreadsheet_id: str) -> List[Tuple[int, str]
     return out
 
 
-def batch_tabs_nonempty(writer: SheetsWriter, spreadsheet_id: str, tabs: List[str]) -> Dict[str, bool]:
+def batch_tabs_nonempty(client: SheetsClient, spreadsheet_id: str, tabs: List[str]) -> Dict[str, bool]:
     """Return map of tab -> has any data rows (beyond header), using a single batchGet call."""
     if not tabs:
         return {}
-    svc = writer._get_service()
+    svc = client._get_service()
     ranges = [f"{t}!A2:Z2" for t in tabs]
     resp = svc.spreadsheets().values().batchGet(spreadsheetId=spreadsheet_id, ranges=ranges).execute()
     out: Dict[str, bool] = {}
@@ -99,21 +99,21 @@ def batch_tabs_nonempty(writer: SheetsWriter, spreadsheet_id: str, tabs: List[st
     return out
 
 
-def ensure_required(writer: SheetsWriter, spreadsheet_id: str) -> List[str]:
+def ensure_required(client: SheetsClient, spreadsheet_id: str) -> List[str]:
     ensured: List[str] = []
     for tab, headers in REQUIRED_TABS.items():
-        writer.ensure_tab_headers(spreadsheet_id, tab, headers)
-        ensured.append(tab)
+    client._set_headers(tab, headers)
+    ensured.append(tab)
     return ensured
 
 
-def compute_deletions(writer: SheetsWriter, spreadsheet_id: str, allow_delete_nonempty: bool) -> List[DeletionCandidate]:
+def compute_deletions(client: SheetsClient, spreadsheet_id: str, allow_delete_nonempty: bool) -> List[DeletionCandidate]:
     candidates: List[DeletionCandidate] = []
-    tabs = list_tabs(writer, spreadsheet_id)
+    tabs = list_tabs(client, spreadsheet_id)
     required_and_optional = set(REQUIRED_TABS.keys()) | set(OPTIONAL_SAFE_TABS)
     extra = [(sid, title) for sid, title in tabs if title not in required_and_optional]
     extra_titles = [t for _, t in extra]
-    nonempty_map = batch_tabs_nonempty(writer, spreadsheet_id, extra_titles)
+    nonempty_map = batch_tabs_nonempty(client, spreadsheet_id, extra_titles)
     for sid, title in extra:
         non_empty = nonempty_map.get(title, False)
         # Safe delete if default empty name or empty content; otherwise require explicit allowance
@@ -122,10 +122,10 @@ def compute_deletions(writer: SheetsWriter, spreadsheet_id: str, allow_delete_no
     return candidates
 
 
-def apply_deletions(writer: SheetsWriter, spreadsheet_id: str, deletions: List[DeletionCandidate]) -> None:
+def apply_deletions(client: SheetsClient, spreadsheet_id: str, deletions: List[DeletionCandidate]) -> None:
     if not deletions:
         return
-    svc = writer._get_service()
+    svc = client._get_service()
     req = {
         "requests": [
             {"deleteSheet": {"sheetId": d.sheet_id}} for d in deletions
@@ -144,7 +144,7 @@ def main() -> int:
 
     cfg = load_cfg(args.config)
     sheet_id = cfg["sheet"]["id"]
-    writer = SheetsWriter(cfg.get("google_auth", {}))
+    client = SheetsClient(spreadsheet_id=sheet_id)
 
     print(f"Sheet: {sheet_id}")
     # Merge preserve list from config
@@ -154,10 +154,10 @@ def main() -> int:
             if t not in OPTIONAL_SAFE_TABS:
                 OPTIONAL_SAFE_TABS.append(t)
         print("Preserving tabs (config):", ", ".join(preserve_from_cfg))
-    ensured = ensure_required(writer, sheet_id)
+    ensured = ensure_required(client, sheet_id)
     print("Ensured tabs with headers:", ", ".join(ensured))
 
-    deletions = compute_deletions(writer, sheet_id, allow_delete_nonempty=args.delete_nonempty)
+    deletions = compute_deletions(client, sheet_id, allow_delete_nonempty=args.delete_nonempty)
 
     if not deletions:
         print("No unnecessary tabs found.")
@@ -168,9 +168,9 @@ def main() -> int:
             print(f" - {d.title} (id={d.sheet_id}, {flag})")
 
     # Report: list non-required tabs that currently contain data
-    all_tabs = list_tabs(writer, sheet_id)
+    all_tabs = list_tabs(client, sheet_id)
     nonrequired_titles = [t for _, t in all_tabs if t not in REQUIRED_TABS]
-    nonempty_map = batch_tabs_nonempty(writer, sheet_id, nonrequired_titles)
+    nonempty_map = batch_tabs_nonempty(client, sheet_id, nonrequired_titles)
     nonreq_nonempty = [t for t in nonrequired_titles if nonempty_map.get(t, False)]
     if nonreq_nonempty:
         print("Non-required, non-empty tabs:")
@@ -181,7 +181,7 @@ def main() -> int:
 
     do_apply = args.apply and not args.dry_run
     if do_apply and deletions:
-        apply_deletions(writer, sheet_id, deletions)
+        apply_deletions(client, sheet_id, deletions)
         print(f"Deleted {len(deletions)} tab(s).")
     elif deletions:
         print("Run with --apply to delete the above tabs.")

@@ -4,7 +4,7 @@ from pathlib import Path
 import yaml
 
 from apps.capture.main import Config, process_midi
-from apps.capture.sheets_writer import SheetsWriter
+from dawsheet.io.sheets import SheetsClient
 from apps.tools.format_timeline import format_chart
 
 
@@ -31,7 +31,7 @@ def main():
     if args.title:
         cfg.project = {**cfg.project, 'title': args.title}
 
-    writer = SheetsWriter(cfg.google_auth)
+    writer = SheetsClient(spreadsheet_id=cfg.sheet['id'])
     sheet_id = cfg.sheet['id']
     timeline_tab = cfg.sheet.get('timeline_tab', 'Timeline')
     charts_tab = cfg.sheet.get('charts_tab', 'Charts')
@@ -40,9 +40,9 @@ def main():
     project_id = process_midi(midi_path, cfg, writer)
 
     # Ensure charts tab and save formatted chart
-    writer.ensure_tab_headers(sheet_id, charts_tab, ['ProjectId', 'Chart', 'Updated'])
-    chart_text = format_chart(project_id, writer, sheet_id, timeline_tab)
-    writer.update_chart(sheet_id, charts_tab, project_id, chart_text)
+    writer._set_headers(charts_tab, ['ProjectId', 'Chart', 'Updated'])
+    chart_text = format_chart(project_id, writer, timeline_tab)
+    writer.upsert_rows(charts_tab, [{'ProjectId': project_id, 'Chart': chart_text, 'Updated': ''}], key_fields=['ProjectId'])
 
     print(f"[import] DONE → ProjectId={project_id}")
 

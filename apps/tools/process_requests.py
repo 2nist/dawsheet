@@ -6,12 +6,12 @@ from typing import Dict, Any, List, Optional, Tuple
 import yaml
 
 from apps.capture.main import Config, process_midi
-from apps.capture.sheets_writer import SheetsWriter
+from dawsheet.io.sheets import SheetsClient
 from apps.tools.request_song import _find_best_midi
 
 
-def _get_service(writer: SheetsWriter):
-    return writer._get_service()  # type: ignore[attr-defined]
+def _get_service(client: SheetsClient):
+    return client._get_service()
 
 
 def _get_headers(svc, sheet_id: str, tab: str) -> List[str]:
@@ -78,12 +78,12 @@ def main():
 
     cfg_data = yaml.safe_load(Path(args.config).read_text(encoding='utf-8'))
     cfg = Config(**cfg_data)
-    writer = SheetsWriter(cfg.google_auth)
     sheet_id = cfg.sheet['id']
+    writer = SheetsClient(spreadsheet_id=sheet_id)
     tab = args.tab
 
     # Use the writer to get all rows as dicts
-    all_rows = writer.get_rows_as_dicts(sheet_id, tab)
+    all_rows = writer.read_rows(tab)
     if not all_rows:
         print("[requests] No rows to process.")
         return
@@ -106,12 +106,19 @@ def main():
 
         try:
             # Update status to WORKING
-            writer.update_request_status(sheet_id, tab, row_idx, 'WORKING', 'Searching for MIDI...')
+            # Note: update_request_status was a convenience in the old writer; emulate inline updates
+            svc = _get_service(writer)
+            headers = _get_headers(svc, sheet_id, tab)
+            header_idx = {h: i for i, h in enumerate(headers)}
+            _set_row_status(svc, sheet_id, tab, header_idx, row_idx, 'WORKING', 'Searching for MIDI...', '')
 
             # Try to locate local MIDI first
             midi_path = _find_best_midi(downloads, artist, title)
             if not midi_path and args.use_chordify_fetch:
-                writer.update_request_status(sheet_id, tab, row_idx, 'WORKING', 'Attempting Chordify download...')
+                svc = _get_service(writer)
+                headers = _get_headers(svc, sheet_id, tab)
+                header_idx = {h: i for i, h in enumerate(headers)}
+                _set_row_status(svc, sheet_id, tab, header_idx, row_idx, 'WORKING', 'Attempting Chordify download...', '')
                 # Attempt Chordify fetch via subprocess
                 cmd = [
                     str(Path(__file__).resolve().parents[2] / '.venv' / 'Scripts' / 'python.exe'),
@@ -124,17 +131,26 @@ def main():
                 midi_path = _find_best_midi(downloads, artist, title)
 
             if not midi_path:
-                writer.update_request_status(sheet_id, tab, row_idx, 'ERROR', 'No MIDI found or downloaded')
+                svc = _get_service(writer)
+                headers = _get_headers(svc, sheet_id, tab)
+                header_idx = {h: i for i, h in enumerate(headers)}
+                _set_row_status(svc, sheet_id, tab, header_idx, row_idx, 'ERROR', 'No MIDI found or downloaded', '')
                 continue
 
             # Process into Timeline with artist/title override in cfg
-            writer.update_request_status(sheet_id, tab, row_idx, 'WORKING', f'Processing {midi_path.name}...')
+            svc = _get_service(writer)
+            headers = _get_headers(svc, sheet_id, tab)
+            header_idx = {h: i for i, h in enumerate(headers)}
+            _set_row_status(svc, sheet_id, tab, header_idx, row_idx, 'WORKING', f'Processing {midi_path.name}...', '')
             cfg.project = {**cfg.project, 'artist': artist, 'title': title}
             
             # process_midi returns the generated project_id
             project_id = process_midi(midi_path, cfg, writer)
 
-            writer.update_request_status(sheet_id, tab, row_idx, 'DONE', f'Success: {midi_path.name}', project_id)
+            svc = _get_service(writer)
+            headers = _get_headers(svc, sheet_id, tab)
+            header_idx = {h: i for i, h in enumerate(headers)}
+            _set_row_status(svc, sheet_id, tab, header_idx, row_idx, 'DONE', f'Success: {midi_path.name}', project_id)
             processed += 1
         except Exception as e:
             # Capture the full traceback for better debugging

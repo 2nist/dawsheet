@@ -9,18 +9,18 @@ from typing import List, Any
 
 import yaml
 
-from apps.capture.sheets_writer import SheetsWriter
+from dawsheet.io.sheets import SheetsClient
 
 
-def _get_rows(writer: SheetsWriter, sheet_id: str, tab: str) -> List[List[Any]]:
+def _get_rows(writer: SheetsClient, sheet_id: str, tab: str) -> List[List[Any]]:
     svc = writer._get_service()  # internal
     res = svc.spreadsheets().values().get(spreadsheetId=sheet_id, range=f"{tab}!A2:C").execute()
     return res.get('values', [])
 
 
-def _ensure_tab(writer: SheetsWriter, sheet_id: str, tab: str):
+def _ensure_tab(writer: SheetsClient, sheet_id: str, tab: str):
     # Make sure sheet exists
-    writer._get_sheet_id(sheet_id, tab)
+    writer._get_sheet_id(tab)
 
 
 def _run(cmd: List[str], cwd: Path, background: bool = False):
@@ -42,7 +42,7 @@ def main():
     project_root = cfg_path.parent
 
     cfg = yaml.safe_load(cfg_path.read_text(encoding='utf-8'))
-    writer = SheetsWriter(cfg.get('google_auth', {}))
+    writer = SheetsClient(spreadsheet_id=cfg['sheet']['id'])
     sheet_id = cfg['sheet']['id']
     tab = args.tab
 

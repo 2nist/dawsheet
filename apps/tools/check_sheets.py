@@ -4,7 +4,7 @@ from pathlib import Path
 import yaml
 
 # Ensure package imports work when run as a module
-from apps.capture.sheets_writer import SheetsWriter, HEADERS
+from dawsheet.io.sheets import SheetsClient, HEADERS
 
 
 def main(config_path: str = 'config.yaml') -> int:
@@ -13,17 +13,11 @@ def main(config_path: str = 'config.yaml') -> int:
     sheet_id = cfg['sheet']['id']
     tab = cfg['sheet'].get('timeline_tab', 'Timeline')
 
-    writer = SheetsWriter(cfg.get('google_auth', {}))
-
+    client = SheetsClient(spreadsheet_id=sheet_id)
     # Ensure tab and headers exist/are upgraded
-    writer.ensure_headers(sheet_id, tab)
-
-    # Fetch header and a few data rows for display
-    svc = writer._get_service()  # using internal for quick check
-    header = writer._get_headers(sheet_id, tab)
-    rng = f"{tab}!A2:U6"  # first 5 data rows within first 21 columns
-    resp = svc.spreadsheets().values().get(spreadsheetId=sheet_id, range=rng).execute()
-    rows = resp.get('values', [])
+    client.ensure_headers(tab, HEADERS)
+    header = client._get_headers(tab)
+    rows = client.read_rows(tab)[:5]
 
     print("Sheet:", sheet_id)
     print("Tab:", tab)

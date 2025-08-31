@@ -4,15 +4,15 @@ import yaml
 from pathlib import Path
 from collections import defaultdict
 
-from apps.capture.sheets_writer import SheetsWriter
+from dawsheet.io.sheets import SheetsClient
 
-def format_chart(project_id: str, writer: SheetsWriter, sheet_id: str, timeline_tab: str) -> str:
+def format_chart(project_id: str, client: SheetsClient, timeline_tab: str) -> str:
     """Reads Timeline data for a project and generates a formatted chord chart.
 
     Uses canonical Timeline headers: Time_s, Dur_s, Lyric, Chord, EventType, Section, ProjectId.
     """
 
-    all_rows = writer.get_rows_as_dicts(sheet_id, timeline_tab)
+    all_rows = client.read_rows(timeline_tab)
 
     project_rows = [row for row in all_rows if row.get('ProjectId') == project_id]
     if not project_rows:
@@ -105,19 +105,15 @@ def main():
     cfg_path = Path(args.config).resolve()
     cfg = yaml.safe_load(cfg_path.read_text(encoding='utf-8'))
     
-    writer = SheetsWriter(cfg.get('google_auth', {}))
     sheet_id = cfg['sheet']['id']
+    client = SheetsClient(spreadsheet_id=sheet_id)
     timeline_tab = cfg['sheet'].get('timeline_tab', 'Timeline')
     charts_tab = cfg['sheet'].get('charts_tab', 'Charts')
-
-    # Ensure the charts tab exists
-    writer.ensure_tab_headers(sheet_id, charts_tab, ['ProjectId', 'Chart', 'Updated'])
-
+    client._set_headers(charts_tab, ['ProjectId', 'Chart', 'Updated'])
     # Generate the chart
-    chart_content = format_chart(args.project_id, writer, sheet_id, timeline_tab)
-    
+    chart_content = format_chart(args.project_id, client, timeline_tab)
     # Save the chart to the 'Charts' tab
-    writer.update_chart(sheet_id, charts_tab, args.project_id, chart_content)
+    client.upsert_rows(charts_tab, [{'ProjectId': args.project_id, 'Chart': chart_content, 'Updated': ''}], key_fields=['ProjectId'])
     
     print(f"Chart for ProjectId '{args.project_id}' has been generated and saved to the '{charts_tab}' tab.")
     print("\n--- Chart Preview ---\n")

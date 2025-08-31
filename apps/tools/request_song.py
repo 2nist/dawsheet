@@ -7,7 +7,7 @@ import re
 import yaml
 
 from apps.capture.main import Config, process_midi
-from apps.capture.sheets_writer import SheetsWriter
+from dawsheet.io.sheets import SheetsClient
 from apps.tools.ingest_from_chordify_midi import _parse_meta_from_name
 
 
@@ -75,7 +75,7 @@ def main():
     # Load config and run the same pipeline as watcher
     cfg_data = yaml.safe_load(Path(args.config).read_text(encoding='utf-8'))
     cfg = Config(**cfg_data)
-    writer = SheetsWriter(cfg.google_auth)
+    writer = SheetsClient(spreadsheet_id=cfg.sheet.id)
     print(f"[request] Using MIDI: {midi_path.name}")
     process_midi(midi_path, cfg, writer)
 
