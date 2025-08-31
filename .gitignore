@@ -1,3 +1,42 @@
+<<<<<<< HEAD
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Sensitive files - DO NOT COMMIT
+/credentials.json
+/dawsheet-*.json
+key.json
+sa.json
+sa-key.json
+sa_key_base64.txt
+*.p12
+*.pem
+.env
+.env.local
+.env.production
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# Local credentials (service account keys)
+/credentials.json
+/dawsheet-*.json
+
+# Node (if used by webapp)
+node_modules/
+
+# Exports/output
+exports/
+
+# Editor/OS
+.vscode/
+.DS_Store
+=======
 # --- DAWSheet .gitignore ---
 
 # Sensitive files - DO NOT COMMIT
@@ -94,3 +133,4 @@ google-cloud-sdk/
 
 # Workspace/Editor files
 *.code-workspace
+>>>>>>> origin/main

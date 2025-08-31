@@ -1,13 +1,68 @@
-# config.yaml
-
-# OSC settings for the REAPER bridge
-osc_ip: '127.0.0.1' # IP address of REAPER's OSC listener
-osc_port: 9000      # Port REAPER is listening on
-
-# Flask server settings for the bridge
-bridge_bind: '127.0.0.1' # IP address for the Flask server to bind to
-bridge_port: 5000        # Port for the Flask server to listen on
-
-# Optional shared secret for basic security
-# Set a strong value when exposing beyond localhost
-shared_secret: ''
+sheet:
+  id: "1hU8WqtvL5tntr6rGbBKxAY-WKMGRAmMJiR1SkYjmZ08"
+  timeline_tab: "Timeline"
+  batch_ms: 750
+  preserve_tabs:
+    - Routing
+    - Dataset_Attribution
+    - Commands
+    - Control
+    - Requests
+    - Catalog_Commands
+    - Catalog_Triggers
+    - Roles
+    - _VAL_HELPERS
+    - Triggers
+    - UI
+    - Controls
+    - Logs
+    - RoutingOps
+    - Ports
+google_auth:
+  credentials_json: "./dawsheet-b312ccb8aecc.json"
+midi:
+  watch_dir: 'C:\Users\CraftAuto-Sales\Downloads'
+  allowed_exts: [".mid", ".lrc", ".vtt"]
+  ignore_partial: true
+  debounce_ms: 600
+  stable_checks: 3
+  assume_min_event_beats: 0.5
+  default_tail_beats: 4
+  merge_subbeat_blips: true
+asr:
+  enable_realtime: true
+  device: "auto"
+  model: "medium"
+  input_source: "loopback"
+  latency_comp_ms: 250
+offline_align:
+  enable: true
+  tool: "whisperx"
+sections:
+  ngram_bars: 8
+  chorus_weight: 1.0
+  lyric_repeat_weight: 0.7
+  chorus_min_occurs: 2
+  intro_max_bars: 4
+  prechorus_max_bars: 4
+  postchorus_bars: 2
+  bridge_min_bars: 4
+  phrase_bars: 4
+  enforce_phrase_multiple: 2
+export:
+  out_dir: "./exports"
+  write_lrc: true
+  write_vtt: true
+  write_json: true
+  write_csv: true
+  write_midi_markers: true
+project:
+  id_prefix: "CFY"
+bridge:
+  # OSC settings for REAPER bridge (from main repo)
+  osc_ip: '127.0.0.1'
+  osc_port: 9000
+  # Local HTTP server settings (if used)
+  bind: '127.0.0.1'
+  port: 5000
+  shared_secret: ''

@@ -1,41 +1,41 @@
-# DAWSheet
+<<<<<<< HEAD
+# DAWSheet Pipeline (MIDI ➜ Live Capture)
 
-Hybrid orchestration: Google Sheets + Apps Script (GAS) for UI/event bus, Java proxy for real-time MIDI/OSC/DAW control.
+MVP to ingest Chordify MIDI, optionally run real-time ASR, write rows to a Google Sheet timeline, infer sections, and export files.
 
-## 🛠️ Development Setup
+## Install
 
-### Quick Start from GitHub
+- Python 3.11 recommended.
+- Create venv and install deps:
 
-```bash
-git clone https://github.com/2nist/dawsheet.git
-cd dawsheet
+```
+python -m venv .venv
+. .venv/Scripts/Activate.ps1
+pip install -r requirements.txt
 ```
 
-### Prerequisites
+- Copy config.example.yaml to config.yaml and edit values.
 
-1.  Clone repo, run `infra/create_topics.sh` to create Pub/Sub topics/subscription.
-2.  Create service account, grant Pub/Sub roles, and add key (see infra/service_accounts.md).
-3.  Set up `.env` in `proxy-java` and GAS Script Properties.
-4.  Deploy GAS with `clasp push` from `apps/gas`.
-5.  Run proxy: `make dev` or VS Code task "proxy-java:dev".
-6.  Edit a cell in "Grid" tab (e.g., `A5: C4, vel=100, dur=0.5`).
-7.  Note plays via MIDI, ACK appears in "Logs" sheet.
+## Run
 
-## Demo
+```
+python -m apps.capture.main --config config.yaml
+```
 
--   Edit cell → NOTE command → Java proxy → MIDI note → ACK → Logs.
--   See [apps/gas/README.md](apps/gas/README.md) for GAS setup.
--   See [infra/service_accounts.md](infra/service_accounts.md) for GCP setup.
+Drop a .mid into your configured watch_dir.
+Watcher notes:
 
-## Design
+- The watcher reacts to .mid / .lrc / .vtt only. Add more by editing config midi.allowed_exts.
+- Partial downloads (.crdownload/.part/.tmp and hidden/prefixes) are ignored until file size is stable.
 
--   Sheets = orchestration UI.
--   Java proxy = low-latency bridge.
--   Pub/Sub = async event bus.
+## Sheet Schema (Timeline)
 
----
+Bar | Beat | BeatAbs | Time_s | Timecode | Chord | Section | Dur_beats | Dur_s | Lyric | Lyric_conf | EventType | WordStart_s | WordEnd_s | SubIdx | Melisma | Chord_conf | Section_conf | Source | ProjectId | EventId
 
-## Use it (Windows PowerShell)
+If headers are missing, they’ll be created (writer upgrades or use Apps Script installLyricWordColumns()).
+
+````markdown
+# DAWSheet
 
 This walks you from zero to sound: set up Pub/Sub, deploy the Sheet script, run the proxy, and trigger a note.
 
@@ -146,3 +146,4 @@ You should hear a note. Proxy logs will show the event. To see ACKs (optional):
 - Add `CC.SET`, `PROGRAM.CHANGE`, DAW actions per `spec/commands.schema.json`.
 - Implement a Sheet-side status log (`pollStatus`) or small Cloud Function.
 - Replace placeholder codegen with schema-driven Java models.
+````

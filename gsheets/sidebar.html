@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>DAWSheet Request</title>
+    <style>
+      body {
+        font: 13px/1.4 Arial, sans-serif;
+        padding: 12px;
+      }
+      label {
+        display: block;
+        margin: 8px 0 4px;
+        font-weight: bold;
+      }
+      input,
+      textarea {
+        width: 100%;
+        box-sizing: border-box;
+        padding: 6px;
+      }
+      button {
+        margin-top: 12px;
+        padding: 8px 12px;
+      }
+      .msg {
+        margin-top: 10px;
+        color: #1a73e8;
+      }
+      .err {
+        color: #d93025;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Request Song</h3>
+    <label for="artist">Artist</label>
+    <input id="artist" placeholder="e.g., Tame Impala" />
+    <label for="title">Title</label>
+    <input id="title" placeholder="e.g., Half Full Glass of Wine" />
+    <label for="note">Note (optional)</label>
+    <textarea id="note" rows="3" placeholder="Version hint or notes"></textarea>
+    <button onclick="submit()">Submit</button>
+    <div id="out" class="msg"></div>
+    <hr />
+    <h3>Commands</h3>
+    <p>
+      Click the button below to process all PENDING songs in the 'Requests'
+      sheet.
+    </p>
+
+    <div id="cmds">
+      <div>
+        <label>Process PENDING Requests</label>
+        <div>
+          <button onclick="runAgent('process_requests','now')">
+            Process All Pending Songs
+          </button>
+        </div>
+      </div>
+      <div style="margin-top: 12px">
+        <label>Import MIDI (local file path)</label>
+        <input
+          id="import_file"
+          placeholder="C:\\Users\\You\\Downloads\\Song.mid"
+        />
+        <div style="display: flex; gap: 6px">
+          <input id="import_artist" placeholder="Artist (optional)" />
+          <input id="import_title" placeholder="Title (optional)" />
+        </div>
+        <button onclick="runImportMIDI()">Import and Process</button>
+        <p style="font-size: 12px; color: #555; margin: 6px 0 0">
+          Tip: Paste the full .mid path. The agent will process in the
+          background and auto-generate a Chart.
+        </p>
+      </div>
+    </div>
+    <hr />
+    <details>
+      <summary>Advanced Commands</summary>
+      <div id="advanced_cmds" style="margin-top: 10px">
+        <div>
+          <label
+            >Start Watcher (ingests .mid/.lrc/.vtt dropped in Downloads)</label
+          >
+          <div>
+            <button onclick="runAgent('start_watcher','now')">
+              Run (via Agent)
+            </button>
+          </div>
+          <textarea id="cmd_watcher" rows="2" readonly></textarea>
+          <button onclick="copyCmd('cmd_watcher')">Copy</button>
+        </div>
+        <div>
+          <label>Reset Sheet (clear Timeline rows below header)</label>
+          <div>
+            <button onclick="runAgent('reset_timeline','now')">
+              Run (via Agent)
+            </button>
+          </div>
+          <textarea id="cmd_reset" rows="2" readonly></textarea>
+          <button onclick="copyCmd('cmd_reset')">Copy</button>
+        </div>
+        <div>
+          <label>Check Sheet (show header + first rows)</label>
+          <div>
+            <button onclick="runAgent('check_sheet','now')">
+              Run (via Agent)
+            </button>
+          </div>
+          <textarea id="cmd_check" rows="2" readonly></textarea>
+          <button onclick="copyCmd('cmd_check')">Copy</button>
+        </div>
+        <div>
+          <label>Start Chrome with Remote Debugging</label>
+          <div>
+            <button onclick="runAgent('start_chrome','now')">
+              Run (via Agent)
+            </button>
+          </div>
+          <textarea id="cmd_chrome" rows="4" readonly></textarea>
+          <button onclick="copyCmd('cmd_chrome')">Copy</button>
+        </div>
+        <div>
+          <label>Import snapped_lyrics.csv (manual fallback)</label>
+          <div>
+            <button onclick="runAgent('import_csv','')">Run (via Agent)</button>
+          </div>
+          <textarea id="cmd_import_csv" rows="3" readonly></textarea>
+          <button onclick="copyCmd('cmd_import_csv')">Copy</button>
+        </div>
+        <div>
+          <label>Create Agent Scheduled Task (auto-start at logon)</label>
+          <div>
+            <button onclick="runAgent('create_agent_task','now')">
+              Run (via Agent)
+            </button>
+          </div>
+          <p style="font-size: 12px; color: #555; margin: 6px 0 0">
+            Tip: Start the agent once manually so it can create the task.
+          </p>
+        </div>
+        <div>
+          <label>Template: Lyrics ingest + import for a specific MIDI</label>
+          <textarea id="cmd_ingest_midi" rows="3" readonly></textarea>
+          <button onclick="copyCmd('cmd_ingest_midi')">Copy</button>
+        </div>
+        <div>
+          <label>Template: Process a single request</label>
+          <textarea id="cmd_process" rows="3" readonly></textarea>
+          <button onclick="copyCmd('cmd_process')">Copy</button>
+        </div>
+      </div>
+    </details>
+    <script>
+      function submit() {
+        const artist = document.getElementById("artist").value.trim();
+        const title = document.getElementById("title").value.trim();
+        const note = document.getElementById("note").value.trim();
+        const out = document.getElementById("out");
+        out.className = "msg";
+        if (!artist || !title) {
+          out.className = "msg err";
+          out.textContent = "Artist and Title are required.";
+          return;
+        }
+        google.script.run
+          .withSuccessHandler(() => {
+            out.textContent =
+              "Request submitted. It will be processed shortly.";
+            document.getElementById("artist").value = "";
+            document.getElementById("title").value = "";
+            document.getElementById("note").value = "";
+          })
+          .withFailureHandler((err) => {
+            out.className = "msg err";
+            out.textContent =
+              err && err.message ? err.message : "Failed to submit.";
+          })
+          .submitRequest({ artist, title, note });
+      }
+
+      function runImportMIDI() {
+        const file = document.getElementById("import_file").value.trim();
+        const artist = document.getElementById("import_artist").value.trim();
+        const title = document.getElementById("import_title").value.trim();
+        const out = document.getElementById("out");
+        if (!file) {
+          out.className = "msg err";
+          out.textContent = "Please paste a full path to a .mid file.";
+          return;
+        }
+        const payload = JSON.stringify({ file, artist, title });
+        runAgent("import_midi", payload);
+      }
+
+      function runAgent(key, value) {
+        google.script.run
+          .withSuccessHandler(() => {
+            const out = document.getElementById("out");
+            out.className = "msg";
+            out.textContent = "Agent command queued.";
+          })
+          .withFailureHandler((err) => {
+            const out = document.getElementById("out");
+            out.className = "msg err";
+            out.textContent =
+              err && err.message ? err.message : "Failed to queue command.";
+          })
+          .triggerCommand(key, value);
+      }
+
+      function copyCmd(id) {
+        const el = document.getElementById(id);
+        el.select();
+        el.setSelectionRange(0, el.value.length);
+        try {
+          document.execCommand("copy");
+          const out = document.getElementById("out");
+          out.className = "msg";
+          out.textContent = "Copied to clipboard.";
+        } catch (e) {
+          const out = document.getElementById("out");
+          out.className = "msg err";
+          out.textContent = "Copy failed. Select and copy manually.";
+        }
+      }
+
+      // Populate commands from server-side context
+      google.script.run
+        .withSuccessHandler((ctx) => {
+          const sheetId = ctx.sheetId;
+          const proj = ctx.projectRoot;
+          const py = ctx.pythonExe;
+          const cfg = ctx.configPath;
+          const dl = ctx.downloadsDir;
+
+          function pwsh(lines) {
+            return lines.join("\n");
+          }
+
+          document.getElementById("cmd_process").value = pwsh([
+            `cd "${proj}"`,
+            `& "${py}" -m apps.tools.process_requests --config "${cfg}" --use-chordify-fetch`,
+          ]);
+
+          document.getElementById("cmd_watcher").value = pwsh([
+            `cd "${proj}"`,
+            `& "${py}" -m apps.capture.main --config "${cfg}"`,
+          ]);
+
+          document.getElementById("cmd_reset").value = pwsh([
+            `cd "${proj}"`,
+            `& "${py}" -m apps.tools.reset_sheet`,
+          ]);
+
+          document.getElementById("cmd_check").value = pwsh([
+            `cd "${proj}"`,
+            `& "${py}" -m apps.tools.check_sheets`,
+          ]);
+
+          document.getElementById("cmd_chrome").value = pwsh([
+            `$chrome = "${"${env:ProgramFiles(x86)}"}\\Google\\Chrome\\Application\\chrome.exe"`,
+            `if (-not (Test-Path $chrome)) { $chrome = "${"${env:ProgramFiles}"}\\Google\\Chrome\\Application\\chrome.exe" }`,
+            `& $chrome --remote-debugging-port=9222`,
+          ]);
+
+          document.getElementById("cmd_import_csv").value = pwsh([
+            `& "${py}" -m apps.tools.lyrics_import_to_sheet --sheet-id ${sheetId} --tab Timeline --csv "${dl}\\snapped_lyrics.csv" --config "${cfg}"`,
+          ]);
+
+          document.getElementById("cmd_ingest_midi").value = pwsh([
+            `& "${py}" -m apps.tools.lyrics_ingest_and_import --midi "${dl}\\YourFile.mid" --project-id REQ_TEST --sheet-id ${sheetId} --artist "Artist" --title "Title" --snap 1/4`,
+          ]);
+        })
+        .withFailureHandler((err) => {
+          const out = document.getElementById("out");
+          out.className = "msg err";
+          out.textContent =
+            (err && err.message) ||
+            "Failed to load context. Open Apps Script and run getSidebarContext once to authorize, then reload this sidebar.";
+          // Leave the Commands section visible so buttons can still be tried (which will also prompt auth)
+        })
+        .getSidebarContext();
+    </script>
+  </body>
+</html>

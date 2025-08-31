@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>DAWSheet — MIDI + Timeline</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial;
+        padding: 12px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .row {
+        margin-bottom: 10px;
+      }
+      label {
+        font-size: 13px;
+        display: block;
+        margin-bottom: 4px;
+      }
+      select,
+      input,
+      button {
+        padding: 6px 8px;
+        width: 100%;
+        box-sizing: border-box;
+      }
+      button {
+        cursor: pointer;
+      }
+      .bar {
+        height: 8px;
+        background: #eee;
+        border-radius: 4px;
+        overflow: hidden;
+        margin: 8px 0;
+      }
+      .bar > div {
+        height: 100%;
+        width: 0%;
+        background: #4a90e2;
+        transition: width 0.1s linear;
+      }
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+      }
+      .section {
+        border: 1px solid #e0e0e0;
+        border-radius: 8px;
+        padding: 10px;
+        margin-bottom: 12px;
+      }
+      .section h4 {
+        margin: 0 0 8px 0;
+        font-size: 14px;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>DAWSheet • MIDI + Timeline</h3>
+
+    <div class="section">
+      <h4>MIDI Output</h4>
+      <div class="grid">
+        <div>
+          <label>Output Port</label>
+          <select id="outs"></select>
+        </div>
+        <div>
+          <label>Voicing</label>
+          <select id="voice">
+            <option value="triad">Triad</option>
+            <option value="seventh">Seventh</option>
+            <option value="shells">Shells (R-3-7)</option>
+            <option value="full">Full (+9/11/13/alt)</option>
+          </select>
+        </div>
+        <div>
+          <label>Velocity</label>
+          <input id="vel" type="number" min="1" max="127" value="96" />
+        </div>
+        <div>
+          <label>Channel (1–16)</label>
+          <input id="chan" type="number" min="1" max="16" value="1" />
+        </div>
+        <div>
+          <label>Loop (s)</label>
+          <input id="loop" type="number" min="0" max="999" value="0" />
+        </div>
+      </div>
+      <div class="grid" style="margin-top: 8px">
+        <button id="play">Play Timeline</button>
+        <button id="stop">Stop</button>
+      </div>
+      <div class="bar"><div id="prog"></div></div>
+      <div class="mono" id="now"></div>
+    </div>
+
+    <div class="section">
+      <h4>Column Visibility</h4>
+      <div class="grid">
+        <label><input type="checkbox" data-col="Lyric" checked /> Lyric</label>
+        <label
+          ><input type="checkbox" data-col="Lyric_conf" checked /> Lyric
+          Conf</label
+        >
+        <label
+          ><input type="checkbox" data-col="Chord_conf" checked /> Chord
+          Conf</label
+        >
+        <label
+          ><input type="checkbox" data-col="Section_conf" checked /> Section
+          Conf</label
+        >
+        <label
+          ><input type="checkbox" data-col="Source" checked /> Source</label
+        >
+        <label
+          ><input type="checkbox" data-col="Playhead" checked /> Playhead</label
+        >
+      </div>
+      <div style="margin-top: 8px">
+        <button id="apply">Apply</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <h4>Playhead</h4>
+      <div class="grid">
+        <div>
+          <label>Go to row (≥ 2)</label>
+          <input id="rownum" type="number" min="2" placeholder="Row #" />
+        </div>
+        <div style="align-self: end">
+          <button id="goto">Go</button>
+        </div>
+        <div style="grid-column: 1 / span 2">
+          <button id="clear">Clear Playhead</button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      let midi,
+        out,
+        stopFlag = false,
+        timerHandles = [];
+
+      function noteOn(o, n, v, ch = 0) {
+        o.send([0x90 | ch, n, v]);
+      }
+      function noteOff(o, n, ch = 0) {
+        o.send([0x80 | ch, n, 0]);
+      }
+
+      function chordToNotes(symbol, mode = "triad") {
+        const names = [
+          "C",
+          "C#",
+          "D",
+          "D#",
+          "E",
+          "F",
+          "F#",
+          "G",
+          "G#",
+          "A",
+          "A#",
+          "B",
+        ];
+        function nameToPc(n) {
+          n = String(n || "")
+            .replace("Db", "C#")
+            .replace("Eb", "D#")
+            .replace("Gb", "F#")
+            .replace("Ab", "G#")
+            .replace("Bb", "A#");
+          return names.indexOf(n);
+        }
+        const m = String(symbol || "").match(
+          /^([A-G][#b]?)(.*?)(?:\/([A-G][#b]?))?$/i
+        );
+        if (!m) return [];
+        const root = m[1].toUpperCase();
+        const tail = m[2] || "";
+        const bass = m[3] ? m[3].toUpperCase() : null;
+        const r = nameToPc(root);
+        let triad = [4, 7]; // major
+        if (/m(?!aj)/i.test(tail)) triad = [3, 7];
+        if (/dim|°|o/.test(tail)) triad = [3, 6];
+        if (/aug|\+/.test(tail)) triad = [4, 8];
+        if (/sus4/.test(tail)) triad = [5, 7];
+        if (/sus2/.test(tail)) triad = [2, 7];
+
+        const pcs = new Set([r]);
+        if (mode !== "shells") {
+          pcs.add((r + triad[0]) % 12);
+          pcs.add((r + triad[1]) % 12);
+        }
+        if (/maj7/.test(tail)) pcs.add((r + 11) % 12);
+        else if (/7/.test(tail)) pcs.add((r + 10) % 12);
+
+        if (mode === "full") {
+          if (/9/.test(tail)) pcs.add((r + 14) % 12);
+          if (/11/.test(tail)) pcs.add((r + 17) % 12);
+          if (/13/.test(tail)) pcs.add((r + 21) % 12);
+          if (/\(.*b9.*\)/.test(tail)) pcs.add((r + 13) % 12);
+          if (/\(.*#9.*\)/.test(tail)) pcs.add((r + 15) % 12);
+          if (/\(.*#11.*\)/.test(tail)) pcs.add((r + 18) % 12);
+          if (/\(.*b13.*\)/.test(tail)) pcs.add((r + 20) % 12);
+        }
+        if (mode === "shells") {
+          if (/sus4/.test(tail)) pcs.add((r + 5) % 12);
+          else if (/sus2/.test(tail)) pcs.add((r + 2) % 12);
+          else pcs.add((r + (/m(?!aj)/i.test(tail) ? 3 : 4)) % 12);
+          if (/maj7/.test(tail)) pcs.add((r + 11) % 12);
+          else if (/7/.test(tail)) pcs.add((r + 10) % 12);
+        }
+        if (bass) {
+          pcs.add(nameToPc(bass));
+        }
+        const notes = [...pcs].sort().map((pc) => 60 + pc);
+        return notes;
+      }
+
+      function schedule(rows) {
+        const ch =
+          (parseInt(document.getElementById("chan").value, 10) || 1) - 1;
+        const vel = Math.max(
+          1,
+          Math.min(
+            127,
+            parseInt(document.getElementById("vel").value, 10) || 96
+          )
+        );
+        const mode = document.getElementById("voice").value;
+        const loopSec = parseFloat(document.getElementById("loop").value) || 0;
+
+        stopFlag = false;
+        timerHandles.forEach((h) => clearTimeout(h));
+        timerHandles.length = 0;
+        const t0 = performance.now();
+
+        const lastSec = rows.length
+          ? Number(rows[rows.length - 1][8] || 0) +
+            Number(rows[rows.length - 1][3] || 0)
+          : 0;
+        const totalMs = (loopSec > 0 ? loopSec * 1000 : lastSec * 1000) + 50;
+        const barEl = document.getElementById("prog");
+        const progTimer = setInterval(() => {
+          const elapsed = performance.now() - t0;
+          const pct = Math.max(0, Math.min(100, (elapsed / totalMs) * 100));
+          barEl.style.width = pct + "%";
+          if (stopFlag || elapsed >= totalMs) clearInterval(progTimer);
+        }, 100);
+        timerHandles.push(progTimer);
+
+        rows.forEach((r, idx) => {
+          const tMs = Number(r[3]) * 1000;
+          const durMs = Number(r[8]) * 1000 || 400;
+          const chordSym = String(r[5] || "");
+          const notes = chordToNotes(chordSym, mode);
+          const h1 = setTimeout(() => {
+            if (stopFlag) return;
+            const sheetRow = 2 + idx;
+            try {
+              google.script.run.setPlayhead(sheetRow);
+            } catch (e) {}
+            for (const n of notes) noteOn(out, n, vel, ch);
+            const h2 = setTimeout(() => {
+              for (const n of notes) noteOff(out, n, ch);
+            }, durMs);
+            timerHandles.push(h2);
+            document.getElementById("now").textContent = `t=${(
+              (performance.now() - t0) /
+              1000
+            ).toFixed(2)}s | ${chordSym}`;
+          }, tMs);
+          timerHandles.push(h1);
+        });
+
+        const hend = setTimeout(() => {
+          if (loopSec > 0 && !stopFlag) {
+            schedule(rows);
+          }
+        }, totalMs);
+        timerHandles.push(hend);
+      }
+
+      // MIDI setup
+      navigator.requestMIDIAccess().then((m) => {
+        midi = m;
+        const outsSel = document.getElementById("outs");
+        outsSel.innerHTML = "";
+        for (let o of midi.outputs.values()) {
+          const opt = document.createElement("option");
+          opt.value = o.id;
+          opt.textContent = o.name;
+          outsSel.appendChild(opt);
+        }
+        outsSel.addEventListener("change", () => {
+          out = midi.outputs.get(outsSel.value);
+        });
+        out = midi.outputs.values().next().value;
+      });
+
+      document.getElementById("play").addEventListener("click", async () => {
+        if (!out) {
+          alert("Pick a MIDI output");
+          return;
+        }
+        google.script.run
+          .withSuccessHandler((rows) => {
+            schedule(rows || []);
+          })
+          .getTimelineRows();
+      });
+
+      document.getElementById("stop").addEventListener("click", () => {
+        stopFlag = true;
+        timerHandles.forEach((h) => clearTimeout(h));
+        timerHandles.length = 0;
+        try {
+          google.script.run.clearPlayhead();
+        } catch (e) {}
+        document.getElementById("prog").style.width = "0%";
+      });
+
+      // Column visibility
+      document.getElementById("apply").addEventListener("click", () => {
+        const map = {};
+        document
+          .querySelectorAll("input[type=checkbox][data-col]")
+          .forEach((b) => {
+            map[b.dataset.col] = b.checked;
+          });
+        google.script.run.setTimelineVisibility(map);
+      });
+
+      // Manual playhead
+      document.getElementById("goto").addEventListener("click", () => {
+        const v = parseInt(document.getElementById("rownum").value, 10);
+        if (!v || v < 2) return;
+        google.script.run.setPlayhead(v);
+      });
+      document.getElementById("clear").addEventListener("click", () => {
+        google.script.run.clearPlayhead();
+        document.getElementById("prog").style.width = "0%";
+      });
+    </script>
+  </body>
+</html>

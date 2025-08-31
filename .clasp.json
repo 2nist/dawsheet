@@ -1,0 +1,16 @@
+{
+  "scriptId": "1tiBfcYW6jGpwMtOj5nZnGHi_-mjNW5Cs78MST06DRT9XjQluV4sCQo7l",
+  "rootDir": "gsheets",
+  "parentId": "1WrTTc4mcV4WVsRyO7OVyPp7Br0gOZ_v0bhk8Kn5wuWA",
+  "scriptExtensions": [
+    ".js",
+    ".gs"
+  ],
+  "htmlExtensions": [
+    ".html"
+  ],
+  "jsonExtensions": [
+    ".json"
+  ],
+  "filePushOrder": []
+}
