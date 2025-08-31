@@ -38,7 +38,6 @@ If headers are missing, they’ll be created (writer upgrades or use Apps Script
 
 This walks you from zero to sound: set up Pub/Sub, deploy the Sheet script, run the proxy, and trigger a note.
 
-
 - Make sure the Pub/Sub API is enabled for your project.
 - Create topics and a subscription (replace `<PROJECT_ID>`):
 
@@ -65,6 +64,7 @@ Key developer docs:
 - `PLAN.md` — roadmap and next steps
 
 Security:
+
 - Do not commit service account JSON files. Use environment variables or encrypted CI secrets.
 
 ### 2) Install and push the Google Apps Script
