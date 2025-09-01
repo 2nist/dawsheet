@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 8px;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      th,
+      td {
+        padding: 6px;
+        border-bottom: 1px solid #eee;
+        text-align: left;
+      }
+      button {
+        margin-right: 6px;
+      }
+      .small {
+        font-size: 0.85em;
+        color: #666;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Playback Jobs</h3>
+    <div>
+      <button id="refresh">Refresh</button>
+      <button id="clearDone">Clear Done</button>
+    </div>
+    <div style="margin-top: 8px">
+      <table id="jobsTable">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Status</th>
+            <th>Progress</th>
+            <th>Device</th>
+            <th>Cmds</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody></tbody>
+      </table>
+    </div>
+    <script>
+      const refreshBtn = document.getElementById("refresh");
+      const clearBtn = document.getElementById("clearDone");
+      const tbody = document.querySelector("#jobsTable tbody");
+
+      function showToast(msg) {
+        google.script.host.close(); // noop to avoid unused warning in some contexts
+        console.log(msg);
+      }
+
+      function renderJobs(jobs) {
+        tbody.innerHTML = "";
+        (jobs || []).forEach((j) => {
+          const tr = document.createElement("tr");
+          const id = document.createElement("td");
+          id.textContent = j.enqueue_id || j.enqueueId || "(id)";
+          const status = document.createElement("td");
+          status.textContent = j.status || "";
+          const prog = document.createElement("td");
+          prog.textContent =
+            j.progress != null ? j.progress + "%" : j.commands_count || 0;
+          const dev = document.createElement("td");
+          dev.textContent = j.device_id || "";
+          const cnt = document.createElement("td");
+          cnt.textContent =
+            j.commands_count || (j.commands ? j.commands.length : 0);
+          const act = document.createElement("td");
+          if (
+            j.status &&
+            (j.status === "queued" ||
+              j.status === "running" ||
+              j.status === "cancelling")
+          ) {
+            const cancel = document.createElement("button");
+            cancel.textContent = "Cancel";
+            cancel.addEventListener("click", () => {
+              cancelJob(j.enqueue_id);
+            });
+            act.appendChild(cancel);
+          }
+          tr.appendChild(id);
+          tr.appendChild(status);
+          tr.appendChild(prog);
+          tr.appendChild(dev);
+          tr.appendChild(cnt);
+          tr.appendChild(act);
+          tbody.appendChild(tr);
+        });
+      }
+
+      function refresh() {
+        refreshBtn.disabled = true;
+        google.script.run
+          .withFailureHandler((e) => {
+            refreshBtn.disabled = false;
+            showToast("Failed: " + e);
+          })
+          .withSuccessHandler((res) => {
+            renderJobs(res);
+            refreshBtn.disabled = false;
+          })
+          .listPlaybackJobs();
+      }
+
+      function cancelJob(id) {
+        google.script.run
+          .withFailureHandler((e) => {
+            showToast("Cancel failed: " + e);
+          })
+          .withSuccessHandler((res) => {
+            showToast("Cancel: " + JSON.stringify(res));
+            refresh();
+          })
+          .cancelPlaybackJob(id);
+      }
+
+      refreshBtn.addEventListener("click", refresh);
+      clearBtn.addEventListener("click", () => {
+        /* client-only cleanup: remove rows marked done locally */ tbody
+          .querySelectorAll("tr")
+          .forEach((r) => {
+            const s = r.children[1].textContent;
+            if (s === "done" || s === "error" || s === "cancelled") r.remove();
+          });
+      });
+
+      // initial load
+      refresh();
+    </script>
+  </body>
+</html>

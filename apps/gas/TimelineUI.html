@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 8px;
+      }
+      button {
+        margin-right: 8px;
+      }
+      pre {
+        background: #f7f7f7;
+        padding: 8px;
+        max-height: 300px;
+        overflow: auto;
+      }
+      select {
+        margin-right: 8px;
+      }
+      /* sidebar animation highlight */
+      #compiledList li.active {
+        background: #fff2b8;
+      }
+      @keyframes ds-pulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.02);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      #compiledList li.active {
+        background: #fff2b8;
+        animation: ds-pulse 360ms ease-in-out;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Timeline</h3>
+    <div>
+      <label for="deviceSelect">Device:</label>
+      <select id="deviceSelect">
+        <option value="">(none)</option>
+      </select>
+      <button id="dryRun">Dry-run (compile)</button>
+      <button id="play" disabled>Play (simulate)</button>
+      <button id="send" disabled>Send to Proxy</button>
+      <button id="animate" disabled>Animate (sidebar)</button>
+      <label style="margin-left: 8px"
+        ><input type="checkbox" id="highlightSheet" /> highlight sheet</label
+      >
+      <button id="selfTest">Self-test</button>
+    </div>
+    <div style="margin-top: 10px">
+      <strong>Compiled commands</strong>
+      <pre id="compiled">(none)</pre>
+      <ul
+        id="compiledList"
+        style="display: none; padding-left: 16px; margin-top: 6px"
+      ></ul>
+    </div>
+    <div style="margin-top: 10px">
+      <strong>Proxy ACK / Response</strong>
+      <pre id="ack">(none)</pre>
+    </div>
+    <script>
+      const deviceSelect = document.getElementById("deviceSelect");
+      const dryRunBtn = document.getElementById("dryRun");
+      const sendBtn = document.getElementById("send");
+      const animateBtn = document.getElementById("animate");
+      const highlightSheetCheckbox = document.getElementById("highlightSheet");
+      const compiledPre = document.getElementById("compiled");
+      const compiledList = document.getElementById("compiledList");
+      const ackPre = document.getElementById("ack");
+      const playBtn = document.getElementById("play");
+      const selfTestBtn = document.getElementById("selfTest");
+      const inlineToast = (function () {
+        let t = document.createElement("div");
+        t.id = "inlineToast";
+        t.style.position = "fixed";
+        t.style.right = "12px";
+        t.style.bottom = "12px";
+        t.style.minWidth = "220px";
+        t.style.display = "none";
+        t.style.padding = "10px";
+        t.style.borderRadius = "6px";
+        t.style.boxShadow = "0 2px 8px rgba(0,0,0,0.2)";
+        t.style.background = "#333";
+        t.style.color = "#fff";
+        t.style.zIndex = 9999;
+        document.body.appendChild(t);
+        return t;
+      })();
+
+      function showInlineToast(msg, opts) {
+        opts = opts || {};
+        inlineToast.textContent = msg;
+        inlineToast.style.background = opts.error ? "#c0392b" : "#333";
+        inlineToast.style.display = "block";
+        if (opts.timeout !== 0)
+          setTimeout(() => {
+            inlineToast.style.display = "none";
+          }, opts.timeout || 3500);
+      }
+
+      function populateDevices(devs) {
+        deviceSelect.innerHTML =
+          '<option value="">(none)</option>' +
+          (devs || [])
+            .map(
+              (d) => `<option value="${d.id}">${d.name} (${d.type})</option>`
+            )
+            .join("");
+      }
+
+      function showCompiled(cmds) {
+        compiledPre.textContent = JSON.stringify(cmds, null, 2);
+        compiledList.innerHTML = "";
+        if (Array.isArray(cmds) && cmds.length > 0) {
+          cmds.forEach((c, i) => {
+            const li = document.createElement("li");
+            li.textContent =
+              (c.at ? c.at + " " : "") + (c.chord || c.type || "cmd");
+            li.setAttribute("data-origin", c.origin || "");
+            compiledList.appendChild(li);
+          });
+          compiledList.style.display = "block";
+        } else {
+          compiledList.style.display = "none";
+        }
+        sendBtn.disabled = !(cmds && cmds.length > 0 && deviceSelect.value);
+        animateBtn.disabled = !(cmds && cmds.length > 0);
+        playBtn.disabled = !(cmds && cmds.length > 0);
+      }
+
+      function showAck(a) {
+        ackPre.textContent = JSON.stringify(a, null, 2);
+        showInlineToast("Proxy ACK: " + (a && a.status ? a.status : "ok"));
+      }
+
+      // load devices
+      google.script.run
+        .withFailureHandler((e) => {
+          showInlineToast("Failed to load devices: " + e, { error: true });
+        })
+        .withSuccessHandler(populateDevices)
+        .listDevices();
+
+      deviceSelect.addEventListener("change", () => {
+        try {
+          const cmds = JSON.parse(compiledPre.textContent || "[]");
+          sendBtn.disabled = !(cmds && cmds.length > 0 && deviceSelect.value);
+          if (!deviceSelect.value)
+            showInlineToast("No device selected", { timeout: 1200 });
+        } catch (e) {
+          sendBtn.disabled = true;
+        }
+      });
+
+      dryRunBtn.addEventListener("click", () => {
+        dryRunBtn.disabled = true;
+        showInlineToast("Compiling...");
+        google.script.run
+          .withFailureHandler((e) => {
+            dryRunBtn.disabled = false;
+            showInlineToast("Compile failed: " + e, { error: true });
+          })
+          .withSuccessHandler((cmds) => {
+            showCompiled(cmds);
+            showInlineToast(
+              "Compiled " + (cmds ? cmds.length : 0) + " commands"
+            );
+            dryRunBtn.disabled = false;
+          })
+          .compileTimeline();
+      });
+
+      sendBtn.addEventListener("click", () => {
+        const dev = deviceSelect.value;
+        if (!dev)
+          return showInlineToast("Select a device first", { error: true });
+        sendBtn.disabled = true;
+        showInlineToast("Sending to proxy...");
+        google.script.run
+          .withFailureHandler((e) => {
+            sendBtn.disabled = false;
+            showInlineToast("Send failed: " + e, { error: true });
+          })
+          .withSuccessHandler((ack) => {
+            showAck(ack);
+            sendBtn.disabled = false;
+          })
+          .sendTimelineToProxy(dev);
+      });
+
+      playBtn.addEventListener("click", () => {
+        try {
+          const cmds = JSON.parse(compiledPre.textContent || "[]");
+          if (!cmds || cmds.length === 0)
+            return showInlineToast("No compiled commands to play.", {
+              error: true,
+            });
+          const dev = deviceSelect.value;
+          if (!dev)
+            return showInlineToast("Select a device first", { error: true });
+          playBtn.disabled = true;
+          showInlineToast("Enqueuing playback to proxy...");
+          // call server-side enqueue which should be non-blocking
+          google.script.run
+            .withFailureHandler((e) => {
+              playBtn.disabled = false;
+              showInlineToast("Enqueue failed: " + e, { error: true });
+            })
+            .withSuccessHandler((res) => {
+              playBtn.disabled = false;
+              if (res && res.enqueue_id) {
+                showInlineToast("Enqueued: " + res.enqueue_id);
+                showAck(res); // start polling status from proxy
+                startPollingPlaybackStatus(res.enqueue_id);
+              } else {
+                showInlineToast("Enqueue response: " + JSON.stringify(res));
+                showAck(res);
+              }
+            })
+            .enqueuePlaybackToProxy(dev, 350);
+        } catch (e) {
+          showInlineToast("Play error: " + e, { error: true });
+        }
+      });
+
+      // Poll proxy for playback job status and update ACK area
+      let playbackPollTimer = null;
+      function startPollingPlaybackStatus(enqueueId) {
+        if (!enqueueId) return;
+        const endpoint = (function () {
+          try {
+            return PropertiesService.getScriptProperties().getProperty(
+              "PROXY_ENDPOINT"
+            );
+          } catch (e) {
+            return null;
+          }
+        })();
+        // fallback: call proxy via UrlFetch through server-side function
+        const poll = function () {
+          // use server-side helper to fetch status so we don't expose endpoint in client
+          google.script.run
+            .withSuccessHandler(function (status) {
+              if (!status) return;
+              ackPre.textContent = JSON.stringify(status, null, 2);
+              if (status.status === "done" || status.status === "error") {
+                showInlineToast(
+                  "Playback " +
+                    status.status +
+                    (status.error ? ": " + status.error : "")
+                );
+                if (playbackPollTimer) {
+                  clearInterval(playbackPollTimer);
+                  playbackPollTimer = null;
+                }
+              }
+            })
+            .withFailureHandler(function (e) {
+              // stop on repeated failures
+              showInlineToast("Status poll failed: " + e, { error: true });
+              if (playbackPollTimer) {
+                clearInterval(playbackPollTimer);
+                playbackPollTimer = null;
+              }
+            })
+            .proxy_getPlaybackStatus(enqueueId);
+        };
+        // first immediate poll then interval
+        poll();
+        playbackPollTimer = setInterval(poll, 1200);
+      }
+
+      // client-side animate in sidebar (non-blocking)
+      const animateCheckbox = highlightSheetCheckbox; // alias
+      animateBtn.addEventListener("click", () => {
+        try {
+          const cmds = JSON.parse(compiledPre.textContent || "[]");
+          if (!cmds || cmds.length === 0)
+            return showInlineToast("No compiled commands to animate.", {
+              error: true,
+            });
+          animateBtn.disabled = true;
+          showInlineToast("Animating in sidebar...");
+          const lis = Array.from(compiledList.children);
+          const interval = 350;
+          lis.forEach((li, i) => {
+            setTimeout(() => {
+              lis.forEach((x) => x.classList.remove("active"));
+              li.classList.add("active");
+              if (animateCheckbox.checked) {
+                const origin = li.getAttribute("data-origin") || "";
+                const m = origin.match(/Timeline\/(\d+)$/);
+                if (m) {
+                  try {
+                    google.script.run.highlightTimelineRow(Number(m[1]));
+                  } catch (e) {}
+                }
+              }
+              setTimeout(() => {
+                li.classList.remove("active");
+              }, Math.max(80, Math.round(interval * 0.6)));
+              if (i === lis.length - 1) {
+                animateBtn.disabled = false;
+                showInlineToast(
+                  "Animation finished (" + lis.length + " steps)"
+                );
+                if (animateCheckbox.checked) {
+                  try {
+                    google.script.run.clearTimelineHighlight();
+                  } catch (e) {}
+                }
+              }
+            }, i * interval);
+          });
+        } catch (e) {
+          showInlineToast("Animate error: " + e, { error: true });
+        }
+      });
+
+      selfTestBtn.addEventListener("click", () => {
+        selfTestBtn.disabled = true;
+        showInlineToast("Running self-test...");
+        google.script.run
+          .withFailureHandler((e) => {
+            selfTestBtn.disabled = false;
+            showInlineToast("Self-test failed: " + e, { error: true });
+          })
+          .withSuccessHandler((res) => {
+            selfTestBtn.disabled = false;
+            if (res && res.ok)
+              showInlineToast(
+                "Self-test OK (" + (res.count || 0) + " commands)"
+              );
+            else
+              showInlineToast("Self-test: " + JSON.stringify(res), {
+                error: true,
+              });
+          })
+          .timeline_selfTest();
+      });
+    </script>
+  </body>
+</html>

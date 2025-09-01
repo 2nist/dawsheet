@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: DAWSheet Internal API
-  version: '1.0.0'
+  version: "1.0.0"
   description: API for importing SongRecord v1 and a healthcheck endpoint
 servers:
   - url: http://localhost:8000
@@ -10,7 +10,7 @@ paths:
     get:
       summary: Health check
       responses:
-        '200':
+        "200":
           description: OK
           content:
             application/json:
@@ -28,7 +28,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/SongRecord'
+              $ref: "#/components/schemas/SongRecord"
       parameters:
         - in: query
           name: sheet_id
@@ -42,7 +42,7 @@ paths:
             default: Timeline
           description: Sheet tab name
       responses:
-        '202':
+        "202":
           description: Accepted - rows queued for write
           content:
             application/json:
@@ -51,7 +51,7 @@ paths:
                 properties:
                   written:
                     type: integer
-        '400':
+        "400":
           description: Validation error
 components:
   schemas:
@@ -93,5 +93,5 @@ components:
         events:
           type: array
           items:
-            $ref: '#/components/schemas/Event'
+            $ref: "#/components/schemas/Event"
       required: [id, title, events]

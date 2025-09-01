@@ -27,8 +27,19 @@ dependencies {
     // JavaOSC for OSC communication (stubbed for now)
     implementation 'com.illposed.osc:javaosc-core:0.8'
 
+    // Spark Java for lightweight HTTP endpoints (used by ProxyApp)
+    implementation 'com.sparkjava:spark-core:2.9.4'
+
+    // JSON Schema validator (networknt) used by CommandEnvelopeValidator
+    implementation 'com.networknt:json-schema-validator:1.0.76'
+
     // JSON parsing
+    // Gson kept for backwards compatibility, but the generated models use Jackson
     implementation 'com.google.code.gson:gson:2.10.1'
+    // Jackson for JSON annotations and databinding used by generated models
+    implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
+    implementation 'com.fasterxml.jackson.core:jackson-annotations:2.15.2'
+    implementation 'com.fasterxml.jackson.core:jackson-core:2.15.2'
 
     // JUnit Jupiter for testing (Gradle 9 compatible)
     testImplementation 'org.junit.jupiter:junit-jupiter:5.10.2'

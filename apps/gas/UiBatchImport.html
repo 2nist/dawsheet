@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+    <title>Batch Import</title>
+  </head>
+  <body>
+    <h3>Batch Import</h3>
+    <div>
+      <input id="folderId" placeholder="Drive folder ID" />
+      <input
+        id="sheetId"
+        placeholder="Optional: target spreadsheet id"
+        style="margin-left: 8px; width: 220px"
+      />
+    </div>
+    <div style="margin-top: 8px">
+      <input
+        id="tabName"
+        placeholder="Optional: target tab (default: Timeline)"
+        style="width: 320px"
+      />
+      <button id="run">Import</button>
+    </div>
+    <pre id="out"></pre>
+    <script>
+      document.getElementById("run").onclick = function () {
+        const id = document.getElementById("folderId").value;
+        const sheetId = document.getElementById("sheetId").value || null;
+        const tab = document.getElementById("tabName").value || null;
+        google.script.run
+          .withSuccessHandler(function (r) {
+            document.getElementById("out").innerText = JSON.stringify(
+              r,
+              null,
+              2
+            );
+          })
+          .runBatchImport(id, sheetId, tab);
+      };
+    </script>
+  </body>
+</html>

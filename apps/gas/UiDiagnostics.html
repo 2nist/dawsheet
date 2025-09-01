@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+    <title>Diagnostics</title>
+    <style>
+      body {
+        font-family: Arial;
+        padding: 8px;
+      }
+      table {
+        border-collapse: collapse;
+      }
+      td,
+      th {
+        border: 1px solid #ddd;
+        padding: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Diagnostics</h3>
+    <button id="run">Compute Diagnostics</button>
+    <div id="out"></div>
+    <script>
+      document.getElementById("run").onclick = function () {
+        google.script.run
+          .withSuccessHandler(function (res) {
+            document.getElementById("out").innerHTML =
+              "<pre>" + JSON.stringify(res, null, 2) + "</pre>";
+          })
+          .computeDiagnostics();
+      };
+    </script>
+  </body>
+</html>

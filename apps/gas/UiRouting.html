@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 8px;
+      }
+      pre {
+        background: #f7f7f7;
+        padding: 8px;
+        border-radius: 4px;
+      }
+      button {
+        margin: 6px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>DAWSheet Routing</h3>
+    <div>
+      <button id="load">Load Routing Matrix</button>
+      <select id="deviceSelect">
+        <option>Loading...</option>
+      </select>
+      <button id="testDevice">Test Device</button>
+      <button id="apply">Send ROUTING.SET</button>
+    </div>
+    <div id="out"></div>
+
+    <script>
+      document.getElementById("load").onclick = function () {
+        google.script.run
+          .withSuccessHandler(function (r) {
+            document.getElementById("out").innerHTML =
+              "<pre>" + JSON.stringify(r, null, 2) + "</pre>";
+          })
+          .compileRoutingMatrix();
+      };
+
+      // populate device list
+      google.script.run
+        .withSuccessHandler(function (devs) {
+          const sel = document.getElementById("deviceSelect");
+          sel.innerHTML = "";
+          if (!devs || devs.length === 0) {
+            sel.innerHTML = "<option>(no devices)</option>";
+            return;
+          }
+          devs.forEach(function (d) {
+            const o = document.createElement("option");
+            o.value = d.id;
+            o.text = d.name + " (" + d.type + ")";
+            sel.appendChild(o);
+          });
+        })
+        .listDevices();
+
+      document.getElementById("testDevice").onclick = function () {
+        const id = document.getElementById("deviceSelect").value;
+        google.script.run
+          .withSuccessHandler(function (resp) {
+            document.getElementById("out").innerHTML =
+              "<pre>TEST ACK: " + JSON.stringify(resp, null, 2) + "</pre>";
+          })
+          .testDevice(id);
+      };
+
+      document.getElementById("apply").onclick = function () {
+        // First compile the routing matrix server-side, then send the compiled payload
+        google.script.run
+          .withSuccessHandler(function (payload) {
+            google.script.run
+              .withSuccessHandler(function (ack) {
+                document.getElementById("out").innerHTML =
+                  "<pre>ACK:\n" + JSON.stringify(ack, null, 2) + "</pre>";
+              })
+              .withFailureHandler(function (e) {
+                document.getElementById("out").innerHTML =
+                  '<pre style="color:red">Send error: ' + e + "</pre>";
+              })
+              .sendRoutingSet(payload);
+          })
+          .withFailureHandler(function (e) {
+            document.getElementById("out").innerHTML =
+              '<pre style="color:red">Compile error: ' + e + "</pre>";
+          })
+          .compileRoutingMatrix();
+      };
+    </script>
+  </body>
+</html>
