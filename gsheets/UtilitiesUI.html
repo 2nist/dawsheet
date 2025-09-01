@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+    <title>Utilities</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 0; padding: 12px; }
+      h2 { margin: 0 0 8px; font-size: 16px; }
+      label { display: block; margin: 6px 0 2px; }
+      input[type="text"], input[type="password"] { width: 100%; padding: 6px; box-sizing: border-box; }
+      button { margin-top: 8px; padding: 6px 10px; }
+      .row { display: flex; gap: 8px; align-items: center; }
+      .row > * { flex: 1; }
+      pre { background: #f8f8f8; padding: 8px; border: 1px solid #eee; max-height: 160px; overflow: auto; }
+      ul { margin: 6px 0; padding-left: 18px; }
+    </style>
+  </head>
+  <body>
+    <h2>Utilities</h2>
+    <section>
+      <h3 style="font-size:14px;margin:6px 0">Proxy Config</h3>
+      <div class="row">
+        <div>
+          <label>Proxy Endpoint</label>
+          <input id="endpoint" type="text" placeholder="http://localhost:8000" />
+        </div>
+        <div>
+          <label>API Key</label>
+          <input id="apiKey" type="password" placeholder="optional" />
+        </div>
+      </div>
+      <div class="row">
+        <button id="saveCfg">Save</button>
+        <button id="health">Check Health</button>
+      </div>
+      <div id="healthOut"></div>
+      <div>
+        <h4 style="font-size:13px;margin:8px 0 4px">Recent Changes</h4>
+        <ul id="audit"></ul>
+      </div>
+    </section>
+    <section>
+      <h3 style="font-size:14px;margin:10px 0 6px">Quick Actions</h3>
+      <div class="row">
+        <button id="sendTest">Send Test Publish</button>
+        <button id="ping">Bridge Ping</button>
+        <button id="listOutputs">List Outputs</button>
+      </div>
+      <pre id="out"></pre>
+    </section>
+    <script>
+      const endpointEl = document.getElementById('endpoint');
+      const apiKeyEl = document.getElementById('apiKey');
+      const outEl = document.getElementById('out');
+      const healthOut = document.getElementById('healthOut');
+      const auditEl = document.getElementById('audit');
+
+      function init() {
+        google.script.run.withSuccessHandler(cfg => {
+          if (!cfg) return;
+          endpointEl.value = cfg.PROXY_ENDPOINT || '';
+          apiKeyEl.value = cfg.PROXY_API_KEY || '';
+        }).getProxyConfig();
+        google.script.run.withSuccessHandler(rows => {
+          auditEl.innerHTML = '';
+          (rows || []).forEach(r => {
+            const li = document.createElement('li');
+            li.textContent = `${new Date(r.ts).toLocaleString()} · ${r.action} → ${r.endpoint} ${r.apiKey ? '(apikey set)' : ''}`;
+            auditEl.appendChild(li);
+          });
+        }).getConfigAudit(5);
+      }
+
+      document.getElementById('saveCfg').addEventListener('click', () => {
+        const ep = endpointEl.value.trim();
+        const key = apiKeyEl.value.trim();
+        google.script.run.withSuccessHandler(() => init()).setProxyConfig(ep, key);
+      });
+      document.getElementById('health').addEventListener('click', () => {
+        healthOut.textContent = 'Checking…';
+        google.script.run.withSuccessHandler(resp => {
+          healthOut.textContent = 'Health: ' + JSON.stringify(resp);
+        }).withFailureHandler(err => {
+          healthOut.textContent = 'Error: ' + err.message;
+        }).proxy_checkHealth();
+      });
+      document.getElementById('sendTest').addEventListener('click', () => {
+        outEl.textContent = 'Sending…';
+        google.script.run.withSuccessHandler(r => outEl.textContent = JSON.stringify(r)).withFailureHandler(e => outEl.textContent = e.message).sendTestPublish();
+      });
+      document.getElementById('ping').addEventListener('click', () => {
+        outEl.textContent = 'Pinging…';
+        google.script.run.withSuccessHandler(r => outEl.textContent = JSON.stringify(r)).withFailureHandler(e => outEl.textContent = e.message).sendBridgePing();
+      });
+      document.getElementById('listOutputs').addEventListener('click', () => {
+        outEl.textContent = 'Requesting outputs…';
+        google.script.run.withSuccessHandler(r => outEl.textContent = JSON.stringify(r)).withFailureHandler(e => outEl.textContent = e.message).requestOutputsList();
+      });
+
+      init();
+    </script>
+  </body>
+  </html>

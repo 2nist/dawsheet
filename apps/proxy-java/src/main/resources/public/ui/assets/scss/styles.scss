@@ -1,0 +1,257 @@
+@use "sass:color";
+
+$bg: #0b1020;
+$fg: #e2e8f0;
+$muted: #94a3b8;
+$accent: #0ea5e9;
+$ok: #16a34a;
+$warn: #f59e0b;
+$err: #dc2626;
+
+* {
+  box-sizing: border-box;
+}
+html,
+body {
+  margin: 0;
+  padding: 0;
+}
+body {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial,
+    "Apple Color Emoji", "Segoe UI Emoji";
+  background: $bg;
+  color: $fg;
+}
+
+.container {
+  max-width: 1100px;
+  margin: 20px auto;
+  padding: 0 16px;
+}
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: #111827;
+  border-bottom: 1px solid #1f2937;
+  h1 {
+    margin: 0;
+    font-size: 18px;
+  }
+  a {
+    color: $muted;
+    text-decoration: none;
+    &:hover {
+      color: $fg;
+    }
+  }
+}
+.panel {
+  background: #0f172a;
+  border: 1px solid #1f2937;
+  border-radius: 8px;
+  padding: 14px;
+  margin: 16px 0;
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.live {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: $err;
+  &.ok {
+    background: $ok;
+  }
+}
+.toggle {
+  font-size: 12px;
+  color: $muted;
+}
+.btn {
+  background: #1f2937;
+  color: $fg;
+  border: 1px solid #374151;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  &:hover {
+    background: #111827;
+  }
+  &.primary {
+    background: $accent;
+    border-color: color.adjust($accent, $lightness: -10%);
+    &:hover {
+      background: color.adjust($accent, $lightness: -5%);
+    }
+  }
+}
+
+.input,
+.select {
+  background: #0b1020;
+  color: $fg;
+  border: 1px solid #1f2937;
+  border-radius: 6px;
+  padding: 6px 8px;
+}
+
+.form-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+  label {
+    color: $muted;
+    font-size: 14px;
+    input {
+      margin-left: 6px;
+      width: 120px;
+    }
+  }
+}
+.form-grid {
+  display: grid;
+  grid-template-columns: 180px 180px 1fr;
+  gap: 10px;
+  align-items: center;
+  label {
+    color: $muted;
+    font-size: 14px;
+    input {
+      margin-left: 6px;
+      width: 120px;
+    }
+  }
+}
+
+.jobs {
+  overflow: auto;
+}
+.grid {
+  width: 100%;
+  border-collapse: collapse;
+  th,
+  td {
+    border: 1px solid #1f2937;
+    padding: 6px 8px;
+  }
+  th {
+    background: #111827;
+    color: $muted;
+    text-align: left;
+  }
+  tr.clickable {
+    cursor: pointer;
+  }
+  tr.running {
+    background: #0b1320;
+  }
+  tr.cancelling {
+    background: #20140b;
+  }
+  tr.done {
+    background: #0b2016;
+  }
+  tr.cancelled {
+    background: #10151f;
+  }
+  tr.error {
+    background: #1f1010;
+  }
+}
+.status-badge {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+  color: white;
+  &.st-queued {
+    background: #6b7280;
+  }
+  &.st-running {
+    background: #0ea5e9;
+  }
+  &.st-cancelling {
+    background: #f59e0b;
+  }
+  &.st-done {
+    background: #16a34a;
+  }
+  &.st-cancelled {
+    background: #6b7280;
+  }
+  &.st-error {
+    background: #dc2626;
+  }
+}
+
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  align-items: center;
+  justify-content: center;
+  .box {
+    background: #0f172a;
+    border: 1px solid #1f2937;
+    border-radius: 8px;
+    padding: 16px;
+    width: min(90vw, 700px);
+  }
+  .actions {
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    margin-top: 12px;
+  }
+}
+
+textarea {
+  width: 100%;
+  background: #0b1020;
+  color: $fg;
+  border: 1px solid #1f2937;
+  border-radius: 6px;
+  padding: 8px;
+}
+pre.result {
+  background: #0b1020;
+  border: 1px solid #1f2937;
+  border-radius: 6px;
+  padding: 8px;
+  overflow: auto;
+}
+
+.toasts {
+  position: fixed;
+  right: 12px;
+  bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  .toast {
+    background: #111827;
+    color: $fg;
+    border: 1px solid #1f2937;
+    padding: 8px 10px;
+    border-radius: 6px;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+    &.ok {
+      border-color: rgba(22, 163, 74, 0.6);
+    }
+    &.err {
+      border-color: rgba(220, 38, 38, 0.6);
+    }
+  }
+}

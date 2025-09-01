@@ -27,15 +27,10 @@ function computeDiagnostics() {
     let hint = { key: "N/A", mode: "N/A", confidence: 0 };
     if (endpoint && chords.length > 0) {
       try {
-        const resp = UrlFetchApp.fetch(endpoint + "/hint/key_chroma", {
-          method: "post",
-          contentType: "application/json",
-          payload: JSON.stringify({
-            songId: "",
-            sectionId: idx,
-            chords: chords,
-          }),
-        });
+  const apiKey = PropertiesService.getScriptProperties().getProperty('PROXY_API_KEY') || '';
+  const options = { method: "post", contentType: "application/json", payload: JSON.stringify({ songId: "", sectionId: idx, chords: chords }), muteHttpExceptions: true };
+  if (apiKey) options.headers = { 'x-api-key': apiKey };
+  const resp = UrlFetchApp.fetch(endpoint + "/hint/key_chroma", options);
         hint = JSON.parse(resp.getContentText());
       } catch (e) {
         hint = { key: "err", mode: "err", confidence: 0 };

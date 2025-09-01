@@ -26,12 +26,10 @@ function runBatchImport(folderId, sheetId, tab) {
       if (sheetId) params.push("sheet_id=" + encodeURIComponent(sheetId));
       if (tab) params.push("tab=" + encodeURIComponent(tab));
       if (params.length) url = url + "?" + params.join("&");
-      const resp = UrlFetchApp.fetch(url, {
-        method: "post",
-        contentType: "application/json",
-        payload: payload,
-        muteHttpExceptions: true,
-      });
+  const apiKey = PropertiesService.getScriptProperties().getProperty('PROXY_API_KEY') || '';
+  const options = { method: "post", contentType: "application/json", payload: payload, muteHttpExceptions: true };
+  if (apiKey) options.headers = { 'x-api-key': apiKey };
+  const resp = UrlFetchApp.fetch(url, options);
       results.push({
         file: name,
         status: resp.getResponseCode(),

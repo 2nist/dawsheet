@@ -11,6 +11,8 @@ repositories {
 }
 
 dependencies {
+    // WebSocket server (required by WebSocketServerStub)
+    implementation 'org.java-websocket:Java-WebSocket:1.5.3'
     // Import the Google Cloud Libraries BOM to manage dependency versions
     implementation platform('com.google.cloud:libraries-bom:26.33.0')
 
@@ -21,10 +23,8 @@ dependencies {
     implementation 'org.slf4j:slf4j-api:2.0.7'
     runtimeOnly 'org.slf4j:slf4j-simple:2.0.7'
 
-    // WebSocket server
-    implementation 'org.java-websocket:Java-WebSocket:1.5.3'
 
-    // JavaOSC for OSC communication (stubbed for now)
+    // JavaOSC for OSC communication
     implementation 'com.illposed.osc:javaosc-core:0.8'
 
     // Spark Java for lightweight HTTP endpoints (used by ProxyApp)
@@ -33,9 +33,6 @@ dependencies {
     // JSON Schema validator (networknt) used by CommandEnvelopeValidator
     implementation 'com.networknt:json-schema-validator:1.0.76'
 
-    // JSON parsing
-    // Gson kept for backwards compatibility, but the generated models use Jackson
-    implementation 'com.google.code.gson:gson:2.10.1'
     // Jackson for JSON annotations and databinding used by generated models
     implementation 'com.fasterxml.jackson.core:jackson-databind:2.15.2'
     implementation 'com.fasterxml.jackson.core:jackson-annotations:2.15.2'
@@ -54,11 +51,55 @@ java {
 }
 
 application {
-    mainClass = 'io.dawsheet.App'
+    mainClass = 'com.dawsheet.proxy.ProxyApp'
 }
 
 test {
     useJUnitPlatform()
+}
+
+// Lint flags for javac
+tasks.withType(JavaCompile).configureEach {
+    options.compilerArgs += ['-Xlint:unchecked','-Xlint:deprecation']
+}
+
+// Produce a fat JAR for easier distribution (Gradle 9 compatible)
+tasks.register('fatJar', Jar) {
+    archiveClassifier.set('all')
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    from sourceSets.main.output
+    dependsOn configurations.runtimeClasspath
+    from {
+        configurations.runtimeClasspath.collect { it.isDirectory() ? it : zipTree(it) }
+    }
+    manifest {
+        attributes 'Main-Class': application.mainClass
+    }
+}
+
+// Optional: npm-based Sass tasks (run only if Node/npm installed)
+tasks.register('sassBuild') {
+    group = 'build'
+    description = 'Build CSS from Sass via npm (optional)'
+    doLast {
+        def npm = org.gradle.internal.jvm.Jvm.current().javaHome // noop, just to avoid unused import warnings
+        try {
+            exec { commandLine 'npm', 'run', 'sass:build' }
+        } catch (Exception e) {
+            println "Skipping Sass build (npm not available?): ${e.message}"
+        }
+    }
+}
+tasks.register('sassWatch') {
+    group = 'build'
+    description = 'Watch Sass via npm (optional)'
+    doLast {
+        try {
+            exec { commandLine 'npm', 'run', 'sass:watch' }
+        } catch (Exception e) {
+            println "Sass watch failed: ${e.message}"
+        }
+    }
 }
 
 // Custom task to run the application and load environment variables from a .env file
@@ -75,6 +116,35 @@ task runWithEnv(type: JavaExec) {
             println "Loading environment variables from .env file"
             envFile.eachLine { line ->
                 // Ignore comments and empty lines
+                if (line.trim() && !line.startsWith('#')) {
+                    if (line.contains('=')) {
+                        def parts = line.split('=', 2)
+                        def key = parts[0].trim()
+                        def value = parts.length > 1 ? parts[1].trim() : ""
+                        if (key) {
+                            environment key, value
+                        }
+                    }
+                }
+            }
+        } else {
+            println "Warning: .env file not found. Relying on system environment variables."
+        }
+    }
+}
+
+// Custom task to run the Pub/Sub subscriber main (io.dawsheet.App) with .env loading
+task runSubscriberWithEnv(type: JavaExec) {
+    group = "application"
+    description = "Runs the Pub/Sub subscriber (io.dawsheet.App) with environment variables from .env file"
+    mainClass = 'io.dawsheet.App'
+    classpath = sourceSets.main.runtimeClasspath
+
+    doFirst {
+        def envFile = file(".env")
+        if (envFile.exists()) {
+            println "Loading environment variables from .env file"
+            envFile.eachLine { line ->
                 if (line.trim() && !line.startsWith('#')) {
                     if (line.contains('=')) {
                         def parts = line.split('=', 2)

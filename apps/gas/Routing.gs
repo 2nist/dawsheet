@@ -46,6 +46,8 @@ function sendRoutingSet(payload) {
     payload: JSON.stringify(envelope),
     muteHttpExceptions: true,
   };
+  const apiKey = PropertiesService.getScriptProperties().getProperty('PROXY_API_KEY') || '';
+  if (apiKey) options.headers = { 'x-api-key': apiKey };
   const resp = UrlFetchApp.fetch(endpoint + "/command", options);
   try {
     const body = JSON.parse(resp.getContentText());
@@ -114,6 +116,17 @@ function listDevices() {
     method: "get",
     muteHttpExceptions: true,
   });
+  // attach API key header when configured
+  // (recreate options to add headers)
+  // Note: UrlFetchApp doesn't allow mutating previous options, so use explicit options if api key is present
+  try {
+    const apiKeyDev = PropertiesService.getScriptProperties().getProperty('PROXY_API_KEY') || '';
+    if (apiKeyDev) {
+      const opts = { method: 'get', muteHttpExceptions: true, headers: { 'x-api-key': apiKeyDev } };
+      const r2 = UrlFetchApp.fetch(endpoint + '/devices', opts);
+      return JSON.parse(r2.getContentText());
+    }
+  } catch (e) { /* fall through to parsing earlier response */ }
   try {
     return JSON.parse(resp.getContentText());
   } catch (e) {

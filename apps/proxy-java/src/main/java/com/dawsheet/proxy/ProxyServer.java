@@ -10,15 +10,44 @@ public class ProxyServer {
     // Simple in-memory job store: enqueue_id -> job info
     private static final Map<String, Map<String, Object>> jobStore = new java.util.concurrent.ConcurrentHashMap<>();
     private static final ObjectMapper M = new ObjectMapper();
-    private static final Path jobsFile = Paths.get(System.getProperty("user.home")).resolve(".dawsheet_playback_jobs.json");
+    // jobsFile path can be configured via system property 'dawsheet.jobsFile' or env var 'DAWSHEET_JOBS_FILE'
+    private static final Path jobsFile;
+    static {
+        String configured = System.getProperty("dawsheet.jobsFile");
+        if (configured == null || configured.isBlank()) configured = System.getenv("DAWSHEET_JOBS_FILE");
+        if (configured != null && !configured.isBlank()) {
+            jobsFile = Paths.get(configured);
+        } else {
+            jobsFile = Paths.get(System.getProperty("user.home")).resolve(".dawsheet_playback_jobs.json");
+        }
+    }
     // Single worker executor for playback jobs
     private static final java.util.concurrent.ExecutorService worker = java.util.concurrent.Executors.newSingleThreadExecutor();
+    // REAPER OSC client (lazy)
+    private static volatile ReaperOscClient reaper;
+    private static ReaperOscClient reaper() {
+        if (reaper == null) {
+            synchronized (ProxyServer.class) {
+                if (reaper == null) {
+                    String host = System.getProperty("dawsheet.reaper.host");
+                    if (host == null || host.isBlank()) host = System.getenv().getOrDefault("REAPER_OSC_HOST", "127.0.0.1");
+                    String portStr = System.getProperty("dawsheet.reaper.port");
+                    if (portStr == null || portStr.isBlank()) portStr = System.getenv().getOrDefault("REAPER_OSC_PORT", "8000");
+                    int port = 8000;
+                    try { port = Integer.parseInt(portStr); } catch (Exception ignore) {}
+                    reaper = new ReaperOscClient(host, port);
+                }
+            }
+        }
+        return reaper;
+    }
 
     public ProxyServer(){
         Path home = Paths.get(System.getProperty("user.home"));
         Path routesFile = home.resolve(".dawsheet_routes.json");
         this.routesManager = new RoutesManager(routesFile);
         System.out.println("Proxy starting; enumerating devices...");
+    System.out.println("Playback jobs file: " + jobsFile.toAbsolutePath().toString());
         // load persisted jobs if present
         loadJobsFile();
         // re-enqueue any queued or running jobs so they continue after restart
@@ -89,6 +118,46 @@ public class ProxyServer {
             } else if ("NOTE.PLAY".equals(cmd) || "BATCH.COMMANDS".equals(cmd)){
                 ack.put("status", "ok");
                 ack.put("msg", "commands forwarded");
+            } else if (cmd != null && cmd.startsWith("REAPER.")) {
+                // Minimal set of REAPER control commands over OSC
+                Map<String,Object> b = body != null ? body : Map.of();
+                switch (cmd) {
+                    case "REAPER.PLAY":
+                        reaper().play();
+                        ack.put("status","ok"); ack.put("msg","play");
+                        break;
+                    case "REAPER.STOP":
+                        reaper().stop();
+                        ack.put("status","ok"); ack.put("msg","stop");
+                        break;
+                    case "REAPER.GOTO.MARKER_INDEX": {
+                        int idx = b.get("index") instanceof Number ? ((Number)b.get("index")).intValue() : 0;
+                        reaper().gotoMarkerIndex(idx);
+                        ack.put("status","ok"); ack.put("msg","goto marker index");
+                        break; }
+                    case "REAPER.GOTO.MARKER_NAME": {
+                        String name = b.get("name") != null ? String.valueOf(b.get("name")) : "";
+                        reaper().gotoMarkerName(name);
+                        ack.put("status","ok"); ack.put("msg","goto marker name");
+                        break; }
+                    case "REAPER.SET.TIME_SECONDS": {
+                        double seconds = 0.0;
+                        Object v = b.get("seconds");
+                        if (v instanceof Number) seconds = ((Number)v).doubleValue();
+                        else if (v != null) try { seconds = Double.parseDouble(String.valueOf(v)); } catch (Exception ignore) {}
+                        reaper().setTimeSeconds(seconds);
+                        ack.put("status","ok"); ack.put("msg","set time");
+                        break; }
+                    case "REAPER.TRACK.MUTE": {
+                        int track = b.get("index") instanceof Number ? ((Number)b.get("index")).intValue() : 1;
+                        boolean on = b.get("on") instanceof Boolean ? (Boolean)b.get("on") : true;
+                        reaper().trackMute(track, on);
+                        ack.put("status","ok"); ack.put("msg","track mute");
+                        break; }
+                    default:
+                        ack.put("status","error");
+                        ack.put("msg","unknown REAPER command");
+                }
             } else {
                 ack.put("status", "error");
                 ack.put("msg", "unknown cmd");
@@ -196,6 +265,22 @@ public class ProxyServer {
         jobStore.put(enqueueId, job);
         persistJobsFile();
         return true;
+    }
+
+    // Remove completed/cancelled/error jobs; returns number removed
+    public static synchronized int pruneCompleted(){
+        int removed = 0;
+        java.util.Iterator<Map.Entry<String, Map<String,Object>>> it = jobStore.entrySet().iterator();
+        while (it.hasNext()){
+            Map.Entry<String, Map<String,Object>> e = it.next();
+            String st = String.valueOf(e.getValue().getOrDefault("status",""));
+            if ("done".equals(st) || "error".equals(st) || "cancelled".equals(st)){
+                it.remove();
+                removed++;
+            }
+        }
+        persistJobsFile();
+        return removed;
     }
 
     // Persist jobStore to jobsFile atomically

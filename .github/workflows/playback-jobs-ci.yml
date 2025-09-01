@@ -2,9 +2,9 @@ name: Playback Jobs CI
 
 on:
   push:
-    branches: [ feat/playback-jobs-persistence ]
+    branches: [feat/playback-jobs-persistence]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   java-tests:
@@ -15,7 +15,7 @@ jobs:
         uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          java-version: "17"
       - name: Run Gradle tests (proxy-java)
         working-directory: apps/proxy-java
         run: |
@@ -29,7 +29,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: "3.11"
       - name: Install deps
         run: |
           python -m pip install --upgrade pip

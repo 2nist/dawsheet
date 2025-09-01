@@ -10,6 +10,9 @@ function fetchAcks(limit) {
   const props = PropertiesService.getScriptProperties();
   const endpoint = props.getProperty("PROXY_ENDPOINT") || "";
   if (!endpoint) throw new Error("PROXY_ENDPOINT not configured");
-  const resp = UrlFetchApp.fetch(endpoint + "/acks?limit=" + (limit || 50));
+  const apiKey = PropertiesService.getScriptProperties().getProperty('PROXY_API_KEY') || '';
+  const options = { method: 'get', muteHttpExceptions: true };
+  if (apiKey) options.headers = { 'x-api-key': apiKey };
+  const resp = UrlFetchApp.fetch(endpoint + "/acks?limit=" + (limit || 50), options);
   return JSON.parse(resp.getContentText());
 }

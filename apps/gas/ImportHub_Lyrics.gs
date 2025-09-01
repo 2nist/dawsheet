@@ -22,6 +22,8 @@ function uploadLyrics(dataUrl, filename, fmt, songId) {
     payload: bytes,
     muteHttpExceptions: true,
   };
+  const apiKey = PropertiesService.getScriptProperties().getProperty('PROXY_API_KEY') || '';
+  if (apiKey) options.headers = { 'x-api-key': apiKey };
   const resp = UrlFetchApp.fetch(url, options);
   const parsed = JSON.parse(resp.getContentText());
   // write to Lyrics sheet
