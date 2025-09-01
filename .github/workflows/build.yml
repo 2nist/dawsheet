@@ -1,0 +1,30 @@
+name: build
+on:
+  push:
+  pull_request:
+jobs:
+  build-java-proxy:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - name: Build (Gradle)
+        shell: pwsh
+        run: |
+          cd apps/proxy-java
+          ./gradlew.bat --no-daemon clean build
+      - name: Smoke test HTTP
+        shell: pwsh
+        run: |
+          cd apps/proxy-java
+          start /B cmd /C ".\gradlew.bat runWithEnv --no-daemon --console=plain > scripts\proxy.log 2>&1"
+          Start-Sleep -Seconds 3
+          $h = Invoke-RestMethod -Uri 'http://localhost:8080/health' -Method Get
+          if ($h.status -ne 'ok') { throw 'health not ok' }
+          Write-Host "Health: $($h | ConvertTo-Json -Compress)"
+          # Stop process
+          ./scripts/stop-proxy.ps1

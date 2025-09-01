@@ -1,0 +1,14 @@
+{
+  "name": "dawsheet-proxy-ui",
+  "private": true,
+  "version": "0.1.0",
+  "description": "UI assets tooling (Sass) for DAWSheet Proxy",
+  "license": "MIT",
+  "scripts": {
+    "sass:build": "sass src/main/resources/public/ui/assets/scss/styles.scss src/main/resources/public/ui/assets/css/styles.css --style=compressed",
+    "sass:watch": "sass --watch src/main/resources/public/ui/assets/scss/styles.scss:src/main/resources/public/ui/assets/css/styles.css --style=expanded"
+  },
+  "devDependencies": {
+    "sass": "^1.77.0"
+  }
+}

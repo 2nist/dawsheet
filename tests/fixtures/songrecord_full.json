@@ -1,0 +1,31 @@
+{
+  "id": "song-002",
+  "title": "Full Song",
+  "artist": "Test Artist",
+  "source": "unit-test",
+  "project_id": "proj-1",
+  "events": [
+    {
+      "beat_abs": 0,
+      "time_s": 0.0,
+      "timecode": "00:00:00",
+      "chord": "C",
+      "section": "Intro",
+      "dur_beats": 4,
+      "dur_s": 2.0,
+      "lyric": "Hello",
+      "event_id": "e1"
+    },
+    {
+      "beat_abs": 4,
+      "time_s": 2.0,
+      "timecode": "00:00:02",
+      "chord": "G",
+      "section": "Verse",
+      "dur_beats": 4,
+      "dur_s": 2.0,
+      "lyric": "World",
+      "event_id": "e2"
+    }
+  ]
+}

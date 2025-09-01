@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DAWSheet Proxy UI</title>
+    <link rel="stylesheet" href="/ui/assets/css/styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <h1>DAWSheet Proxy</h1>
+      <nav>
+        <a href="/">Home</a> · <a href="/health" target="_blank">Health</a>
+      </nav>
+    </header>
+
+    <main class="container">
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Playback Jobs</h2>
+          <div class="live">
+            <span class="dot" id="liveDot"></span>
+            <span id="liveText">Disconnected</span>
+            <label class="toggle"
+              ><input type="checkbox" id="toggleSSE" checked /> Live
+              (SSE)</label
+            >
+            <select id="statusFilter" class="select">
+              <option value="">All</option>
+              <option>queued</option>
+              <option>running</option>
+              <option>cancelling</option>
+              <option>done</option>
+              <option>cancelled</option>
+              <option>error</option>
+            </select>
+            <input id="searchJobs" class="input" placeholder="Search..." />
+            <button id="refresh" class="btn">Refresh</button>
+            <button id="clearCompleted" class="btn">Clear completed</button>
+          </div>
+        </div>
+        <div id="jobs" class="jobs">Loading...</div>
+      </section>
+
+      <section class="panel">
+        <h2>Quick Enqueue</h2>
+        <div class="form-row">
+          <label>Note <input id="note" value="C4" /></label>
+          <label
+            >Velocity <input id="velocity" type="number" value="100"
+          /></label>
+          <label
+            >Duration (s)
+            <input id="duration" type="number" step="0.1" value="0.2"
+          /></label>
+          <button id="enqueue" class="btn primary">Enqueue NOTE.PLAY</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>REAPER Controls</h2>
+        <div class="form-grid">
+          <button class="btn" data-reaper="REAPER.PLAY">Play</button>
+          <button class="btn" data-reaper="REAPER.STOP">Stop</button>
+          <span></span>
+          <label
+            >Marker Index <input id="mkIndex" type="number" value="1"
+          /></label>
+          <button class="btn" id="gotoIdx">Goto Index</button>
+          <span></span>
+          <label>Marker Name <input id="mkName" placeholder="Verse" /></label>
+          <button class="btn" id="gotoName">Goto Name</button>
+          <span></span>
+          <label
+            >Time (sec) <input id="mkTime" type="number" step="0.1" value="0"
+          /></label>
+          <button class="btn" id="gotoTime">Set Time</button>
+          <span></span>
+          <label>Track <input id="trkIndex" type="number" value="1" /></label>
+          <label>Mute <input id="trkMute" type="checkbox" checked /></label>
+          <button class="btn" id="trkMuteBtn">Apply</button>
+        </div>
+        <div class="hint">
+          Env: REAPER_OSC_HOST, REAPER_OSC_PORT, REAPER_OSC_DRY_RUN=true for
+          safe logging.
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Arrangement Validator</h2>
+        <textarea
+          id="arrText"
+          rows="10"
+          placeholder='{"version":1,"title":"Song","sections":[{"name":"Intro","commands":[{"type":"REAPER.PLAY"}]}]}'
+        ></textarea>
+        <div class="form-row">
+          <button id="validate" class="btn">Validate</button>
+          <pre class="result" id="arrResult"></pre>
+        </div>
+      </section>
+    </main>
+
+    <div id="modal" class="modal">
+      <div class="box">
+        <div id="modalBody"></div>
+        <div class="actions">
+          <button id="cancelJob" class="btn">Cancel Job</button
+          ><button id="closeModal" class="btn">Close</button>
+        </div>
+      </div>
+    </div>
+
+    <script src="/ui/assets/js/app.js"></script>
+    <div id="toasts" class="toasts"></div>
+  </body>
+</html>

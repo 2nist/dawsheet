@@ -1,0 +1,5 @@
+{
+  "id": "song-001",
+  "title": "Minimal Song",
+  "events": [{ "beat_abs": 0, "time_s": 0.0, "chord": "C" }]
+}

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+    <title>Import Lyrics</title>
+    <style>
+      body {
+        font-family: Arial;
+        padding: 8px;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Import Lyrics (.lrc / .txt)</h3>
+    <div>
+      <input type="file" id="file" />
+      <input id="songId" placeholder="songId (optional)" />
+      <select id="fmt">
+        <option value="lrc">.lrc</option>
+        <option value="txt">.txt</option>
+      </select>
+      <button id="upload">Upload</button>
+    </div>
+    <div id="out"></div>
+    <script>
+      document.getElementById("upload").onclick = function () {
+        const f = document.getElementById("file").files[0];
+        const songId = document.getElementById("songId").value || "";
+        const fmt = document.getElementById("fmt").value;
+        const reader = new FileReader();
+        reader.onload = function (e) {
+          const bytes = e.target.result;
+          google.script.run
+            .withSuccessHandler(function (res) {
+              document.getElementById("out").innerHTML =
+                "<pre>" + JSON.stringify(res, null, 2) + "</pre>";
+            })
+            .withFailureHandler(function (err) {
+              document.getElementById("out").innerHTML =
+                '<pre style="color:red">' + err + "</pre>";
+            })
+            .uploadLyrics(bytes, f.name, fmt, songId);
+        };
+        reader.readAsDataURL(f);
+      };
+    </script>
+  </body>
+</html>

@@ -1,0 +1,17 @@
+node_modules/
+.npmrc
+
+# Gradle caches and build outputs
+.gradle/
+build/
+bin/
+
+# Local logs and scripts outputs
+scripts/*.log*
+
+# IDE files
+.idea/
+*.iml
+.classpath
+.project
+.settings/

@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+    <title>Trigger Editor</title>
+    <style>
+      body {
+        font-family: Arial;
+        padding: 8px;
+      }
+      .step {
+        margin: 8px 0;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Trigger Editor (MVP)</h3>
+    <div class="step">
+      <label>Type</label>
+      <select id="type">
+        <option>Step Grid</option>
+        <option>Macro Pad</option>
+        <option>CC Lane</option>
+        <option>Dropdown</option>
+      </select>
+    </div>
+    <div class="step">
+      <label>Target</label>
+      <input id="target" placeholder="target name or device" />
+      <label>Channel</label>
+      <input id="channel" type="number" min="1" max="16" value="1" />
+    </div>
+    <div class="step">
+      <label>Range</label>
+      <input id="range" placeholder="Click Pick Range" />
+      <button id="pick">Pick Range</button>
+    </div>
+    <div class="step">
+      <label>Rows</label
+      ><input id="rows" type="number" value="2" style="width: 70px" />
+      <label>Cols</label
+      ><input id="cols" type="number" value="16" style="width: 70px" />
+    </div>
+    <div class="step">
+      <button id="insert">Insert</button>
+      <button id="validate">Validate Triggers</button>
+    </div>
+    <div id="out"></div>
+
+    <script>
+      document.getElementById("pick").onclick = function () {
+        google.script.run
+          .withSuccessHandler(function (a1) {
+            document.getElementById("range").value = a1;
+          })
+          .pickActiveRangeA1();
+      };
+
+      document.getElementById("insert").onclick = function () {
+        const typ = document.getElementById("type").value;
+        const tgt = document.getElementById("target").value;
+        const ch = parseInt(document.getElementById("channel").value) || 1;
+        const a1 = document.getElementById("range").value;
+        const rows = parseInt(document.getElementById("rows").value) || 2;
+        const cols = parseInt(document.getElementById("cols").value) || 16;
+        google.script.run
+          .withSuccessHandler(function (res) {
+            document.getElementById("out").innerHTML =
+              "<pre>" + JSON.stringify(res, null, 2) + "</pre>";
+          })
+          .insertStepGrid(a1, rows, cols, tgt, ch);
+      };
+
+      document.getElementById("validate").onclick = function () {
+        google.script.run
+          .withSuccessHandler(function (res) {
+            document.getElementById("out").innerHTML =
+              "<pre>" + JSON.stringify(res, null, 2) + "</pre>";
+          })
+          .validateTriggers();
+      };
+    </script>
+  </body>
+</html>

@@ -54,3 +54,8 @@ export interface AckStatus {
   /** An optional error message if `ok` is false. */
   error?: string;
 }
+
+// Constants
+export const COMMAND_TYPE_PLAY = "NOTE.PLAY";
+export const COMMAND_TYPE_TEST = "TEST.PING";
+export const ACK_STATUS_OK = "ok";

@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+    <title>Timeline</title>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        padding: 8px;
+      }
+      button {
+        margin-right: 8px;
+      }
+      pre {
+        background: #f7f7f7;
+        padding: 8px;
+        max-height: 300px;
+        overflow: auto;
+      }
+      select {
+        margin-right: 8px;
+      }
+      #compiledList li.active {
+        background: #fff2b8;
+      }
+      @keyframes ds-pulse {
+        0% {
+          transform: scale(1);
+        }
+        50% {
+          transform: scale(1.02);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      #compiledList li.active {
+        background: #fff2b8;
+        animation: ds-pulse 360ms ease-in-out;
+        border-radius: 4px;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Timeline</h3>
+    <div>
+      <label for="deviceSelect">Device:</label>
+      <select id="deviceSelect">
+        <option value="">(none)</option>
+      </select>
+      <button id="dryRun">Dry-run (compile)</button>
+      <button id="play" disabled>Play (simulate)</button>
+      <button id="send" disabled>Send to Proxy</button>
+      <button id="animate" disabled>Animate (sidebar)</button>
+      <label style="margin-left: 8px"
+        ><input type="checkbox" id="highlightSheet" /> highlight sheet</label
+      >
+      <button id="selfTest">Self-test</button>
+    </div>
+    <div style="margin-top: 10px">
+      <strong>Compiled commands</strong>
+      <pre id="compiled">(none)</pre>
+      <ul
+        id="compiledList"
+        style="display: none; padding-left: 16px; margin-top: 6px"
+      ></ul>
+    </div>
+    <div style="margin-top: 10px">
+      <strong>Proxy ACK / Response</strong>
+      <pre id="ack">(none)</pre>
+    </div>
+    <div
+      style="margin-top: 12px; border-top: 1px dashed #ddd; padding-top: 8px"
+    >
+      <strong>Proxy settings</strong>
+      <div style="margin-top: 6px">
+        <label style="display: block">Endpoint (PROXY_ENDPOINT)</label>
+        <input
+          id="proxyEndpoint"
+          type="text"
+          style="width: 100%"
+          placeholder="https://proxy.example.com"
+        />
+      </div>
+      <div style="margin-top: 6px">
+        <label style="display: block">API Key (PROXY_API_KEY)</label>
+        <input
+          id="proxyApiKey"
+          type="text"
+          style="width: 100%"
+          placeholder="(optional)"
+        />
+      </div>
+      <div style="margin-top: 6px">
+        <button id="saveProxy">Save settings</button>
+        <button id="refreshProxy">Refresh</button>
+        <button id="checkHealthBtn" style="margin-left: 8px">
+          Check health
+        </button>
+        <span id="proxyMsg" class="small" style="margin-left: 8px"></span>
+      </div>
+    </div>
+    <script>
+      // small client script (abridged)
+      function $(id) {
+        return document.getElementById(id);
+      }
+      function showMsg(m) {
+        $("proxyMsg").textContent = String(m);
+        setTimeout(
+          () => ($("proxyMsg").textContent = ""),
+          (m) => {},
+          3000
+        );
+      }
+
+      // load current proxy config
+      function loadProxyConfig() {
+        google.script.run
+          .withSuccessHandler(function (cfg) {
+            $("proxyEndpoint").value = cfg.PROXY_ENDPOINT || "";
+            $("proxyApiKey").value = cfg.PROXY_API_KEY || "";
+          })
+          .withFailureHandler(function (e) {
+            console.log("cfg err", e);
+          })
+          .getProxyConfig();
+      }
+
+      $("saveProxy").addEventListener("click", function () {
+        const ep = $("proxyEndpoint").value.trim();
+        const key = $("proxyApiKey").value.trim();
+        $("saveProxy").disabled = true;
+        google.script.run
+          .withSuccessHandler(function (r) {
+            showMsg("Saved");
+            // automatically check health after saving settings
+            checkHealth();
+            $("saveProxy").disabled = false;
+          })
+          .withFailureHandler(function (e) {
+            showMsg("Save failed");
+            $("saveProxy").disabled = false;
+          })
+          .setProxyConfig(ep, key);
+      });
+      $("refreshProxy").addEventListener("click", loadProxyConfig);
+      $("checkHealthBtn").addEventListener("click", checkHealth);
+
+      function showHealth(result) {
+        try {
+          if (!result) {
+            $("proxyMsg").textContent = "no response";
+            $("proxyMsg").style.color = "";
+            return;
+          }
+          if (result.status && result.status === "ok") {
+            $("proxyMsg").textContent = "ok";
+            $("proxyMsg").style.color = "green";
+          } else if (result.status) {
+            $("proxyMsg").textContent =
+              String(result.status) + (result.msg ? ": " + result.msg : "");
+            $("proxyMsg").style.color = "orange";
+          } else {
+            $("proxyMsg").textContent = JSON.stringify(result).slice(0, 200);
+            $("proxyMsg").style.color = "black";
+          }
+        } catch (e) {
+          $("proxyMsg").textContent = "err";
+          $("proxyMsg").style.color = "red";
+        }
+      }
+
+      function showHealthError(e) {
+        $("proxyMsg").textContent = "health check failed";
+        $("proxyMsg").style.color = "red";
+      }
+
+      function checkHealth() {
+        $("checkHealthBtn").disabled = true;
+        google.script.run
+          .withSuccessHandler(function (r) {
+            showHealth(r);
+            $("checkHealthBtn").disabled = false;
+          })
+          .withFailureHandler(function (e) {
+            showHealthError(e);
+            $("checkHealthBtn").disabled = false;
+          })
+          .proxy_checkHealth();
+      }
+
+      // initialize
+      loadProxyConfig();
+    </script>
+  </body>
+</html>

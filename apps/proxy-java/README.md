@@ -1,3 +1,13 @@
+Proxy Java (skeleton)
+
+This folder contains a minimal Java proxy skeleton used to implement command handling (ROUTING.SET), persistence of routes.json, and ACK publishing.
+
+Files:
+
+- src/main/java/com/dawsheet/proxy/RoutesManager.java
+- src/main/java/com/dawsheet/proxy/ProxyServer.java
+
+Build: add a Maven/Gradle wrapper and Jackson dependency to serialize/deserialize JSON.
 DAWSheet Java Proxy
 ===================
 

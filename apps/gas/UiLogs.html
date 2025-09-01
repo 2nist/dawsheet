@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+    <title>DAWSheet Logs</title>
+    <style>
+      body {
+        font-family: Arial;
+        padding: 8px;
+      }
+      pre {
+        background: #f7f7f7;
+        padding: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <h3>Acks</h3>
+    <div>
+      <button id="refresh">Refresh</button>
+      <input id="limit" type="number" value="25" style="width: 70px" />
+    </div>
+    <div id="out"></div>
+    <script>
+      document.getElementById("refresh").onclick = function () {
+        const lim = parseInt(document.getElementById("limit").value) || 25;
+        google.script.run
+          .withSuccessHandler(function (data) {
+            document.getElementById("out").innerHTML =
+              "<pre>" + JSON.stringify(data, null, 2) + "</pre>";
+          })
+          .fetchAcks(lim);
+      };
+    </script>
+  </body>
+</html>

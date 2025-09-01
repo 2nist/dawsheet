@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top" />
+    <title>Song Library</title>
+    <style>
+      body { font-family: Arial, sans-serif; margin: 0; padding: 12px; }
+      h2 { margin: 0 0 8px; font-size: 16px; }
+      .actions { display: flex; gap: 8px; margin-bottom: 8px; }
+      button { padding: 6px 10px; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { border-bottom: 1px solid #eee; padding: 6px; font-size: 12px; }
+      th { text-align: left; background: #fafafa; position: sticky; top: 0; }
+      tr:hover { background: #f6fafe; }
+      .small { font-size: 11px; color: #555; }
+      #status { margin-top: 6px; font-size: 12px; color: #333; }
+    </style>
+  </head>
+  <body>
+    <h2>Song Library</h2>
+    <div class="actions">
+      <button id="refreshBtn">Refresh</button>
+      <button id="genSelectedBtn">Generate for selected row</button>
+  <button id="createSampleBtn">Create sample song</button>
+    </div>
+    <div id="status" class="small">Loading…</div>
+    <table id="songsTable">
+      <thead>
+        <tr>
+          <th>songId</th>
+          <th>Title</th>
+          <th>Artist</th>
+          <th>BPM</th>
+          <th>Key</th>
+          <th>Tags</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+    <script>
+      const statusEl = document.getElementById('status');
+      const tbody = document.querySelector('#songsTable tbody');
+
+      function setStatus(msg){ statusEl.textContent = msg; }
+
+      function refresh() {
+        setStatus('Loading…');
+        google.script.run.withSuccessHandler(renderSongs).withFailureHandler(err => setStatus('Error: ' + err.message)).getSongs();
+      }
+
+      function renderSongs(songs) {
+        tbody.innerHTML = '';
+        (songs || []).forEach(song => {
+          const tr = document.createElement('tr');
+          tr.innerHTML = `
+            <td>${song.songId || ''}</td>
+            <td>${song.meta && song.meta.title || ''}</td>
+            <td>${song.meta && song.meta.artist || ''}</td>
+            <td>${song.meta && song.meta.bpm || ''}</td>
+            <td>${song.meta && song.meta.key || ''}</td>
+            <td>${(song.meta && song.meta.tags || []).join(', ')}</td>
+            <td><button data-songid="${song.songId}">Generate & Publish</button></td>
+          `;
+          tr.querySelector('button').addEventListener('click', () => generateForSong(song.songId));
+          tbody.appendChild(tr);
+        });
+        setStatus(`${songs.length} song(s)`);
+      }
+
+      function generateSelected() {
+        setStatus('Generating from selected row…');
+        google.script.run.withSuccessHandler(() => setStatus('Published from selected row')).withFailureHandler(err => setStatus('Error: ' + err.message)).generateCommandsForActiveSong();
+      }
+
+      function generateForSong(songId) {
+        setStatus('Generating ' + songId + '…');
+        google.script.run.withSuccessHandler(() => setStatus('Published ' + songId)).withFailureHandler(err => setStatus('Error: ' + err.message)).generateCommandsForSongId(songId);
+      }
+
+      document.getElementById('refreshBtn').addEventListener('click', refresh);
+      document.getElementById('genSelectedBtn').addEventListener('click', generateSelected);
+      document.getElementById('createSampleBtn').addEventListener('click', () => {
+        setStatus('Creating sample…');
+        google.script.run.withSuccessHandler(res => {
+          if (res && res.ok) { setStatus('Sample ready (' + res.songId + ')'); refresh(); }
+          else setStatus('Failed to create sample');
+        }).withFailureHandler(err => setStatus('Error: ' + err.message)).createSampleSong();
+      });
+      refresh();
+    </script>
+  </body>
+  </html>

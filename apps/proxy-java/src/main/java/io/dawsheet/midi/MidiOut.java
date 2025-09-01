@@ -1,6 +1,7 @@
 package io.dawsheet.midi;
 
 import javax.sound.midi.*;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import java.util.concurrent.Executors;
@@ -45,6 +46,11 @@ public class MidiOut implements AutoCloseable {
         }
     }
 
+    // Backwards-compatible no-arg constructor used by some callers/tests
+    public MidiOut() throws Exception {
+        this((String) null);
+    }
+
     public void noteOn(int channel1Based, int note, int velocity, double durationSec) {
         try {
             int ch = Math.max(1, Math.min(16, channel1Based)) - 1;
@@ -78,5 +84,59 @@ public class MidiOut implements AutoCloseable {
         try { if (device != null && device.isOpen()) device.close(); } catch (Exception ignored) {}
         try { if (synth != null && synth.isOpen()) synth.close(); } catch (Exception ignored) {}
         scheduler.shutdown();
+    }
+
+    // Static convenience wrappers used by CommandRouter for MVP behavior.
+    // These keep the MIDI implementation simple: if the payload contains a
+    // "note" (numeric) and optional channel/velocity/duration, play it.
+    public static void playRaw(Map<String,Object> payload) {
+        try {
+            int note = payload.containsKey("note") ? ((Number)payload.get("note")).intValue() : -1;
+            int channel = payload.containsKey("channel") ? ((Number)payload.get("channel")).intValue() : 1;
+            int velocity = payload.containsKey("velocity") ? ((Number)payload.get("velocity")).intValue() : 100;
+            double duration = payload.containsKey("durationSec") ? ((Number)payload.get("durationSec")).doubleValue() : 0.25;
+            if (note >= 0) {
+                try (MidiOut m = new MidiOut()) {
+                    m.noteOn(channel, note, velocity, duration);
+                }
+            }
+        } catch (Exception ex) {
+            log.error("playRaw failed: {}", ex.toString());
+        }
+    }
+
+    public static void ccSet(Map<String,Object> payload) {
+        // Stub: not implemented in MVP; just log
+        log.info("ccSet called (stub): {}", payload);
+    }
+
+    public static void ccRamp(Map<String,Object> payload) {
+        // Stub: not implemented in MVP; just log
+        log.info("ccRamp called (stub): {}", payload);
+    }
+
+    public static void programChange(Map<String,Object> payload) {
+        // Stub: not implemented in MVP; just log
+        log.info("programChange called (stub): {}", payload);
+    }
+
+    public static void playChord(Map<String,Object> payload) {
+        // For MVP, if payload contains an array of notes, play them sequentially
+        try {
+            Object notesObj = payload.get("notes");
+            if (notesObj instanceof java.util.List) {
+                java.util.List<?> notes = (java.util.List<?>) notesObj;
+                for (Object n : notes) {
+                    int note = ((Number)n).intValue();
+                    try (MidiOut m = new MidiOut()) {
+                        m.noteOn(1, note, 100, 0.25);
+                    }
+                }
+            } else if (payload.containsKey("note")) {
+                playRaw(payload);
+            }
+        } catch (Exception ex) {
+            log.error("playChord failed: {}", ex.toString());
+        }
     }
 }

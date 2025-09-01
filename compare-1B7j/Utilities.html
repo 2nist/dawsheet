@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DAWSheet Utilities</title>
+    <base target="_top">
+    <style>
+      body { font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif; padding: 14px; }
+      h2 { margin: 0 0 10px; font-size: 16px; }
+      .group { border: 1px solid #e5e7eb; border-radius: 8px; padding: 10px; margin-block: 10px; }
+      label { display:block; margin-block: 8px 4px; font-weight: 600; font-size: 12px; }
+      input[type="text"] { inline-size: 100%; padding: 6px 8px; box-sizing: border-box; }
+      .row { display:flex; gap: 8px; flex-wrap: wrap; }
+      button { padding: 6px 10px; border-radius: 6px; border: 1px solid #d1d5db; cursor:pointer; background:#f9fafb; }
+      .status { margin-block-start: 8px; font-size: 12px; color:#374151; }
+      small { color:#6b7280; }
+    </style>
+  </head>
+  <body>
+    <h2>DAWSheet Utilities</h2>
+
+    <div class="group">
+      <label>Project and Topics</label>
+      <input id="projectId" placeholder="your-project-id" />
+      <input id="commandsTopic" placeholder="dawsheet.commands" />
+      <input id="statusTopic" placeholder="dawsheet.status" />
+      <div class="row" style="margin-top:8px">
+        <button onclick="saveProps()">Save</button>
+        <button onclick="sendTest()">Send Test NOTE</button>
+      </div>
+      <small>These are stored in Script Properties for this Sheet.</small>
+    </div>
+
+    <div class="group">
+      <label>Bridge Handshake</label>
+      <div class="row">
+        <button onclick="pingBridge()">Check Bridge (PING)</button>
+        <button onclick="listOutputs()">List Outputs</button>
+      </div>
+      <small>Check the status topic for PONG/OUTPUTS replies for now.</small>
+    </div>
+
+    <div class="group">
+      <label>Set Bridge Output</label>
+      <input id="outputName" placeholder="e.g., IAC, IAC Driver IAC, USB2" />
+      <div class="row" style="margin-top:8px">
+        <button onclick="setOutput()">Set Output</button>
+      </div>
+      <small>Use the exact or partial name shown in the Outputs list.</small>
+    </div>
+
+    <div id="status" class="status"></div>
+
+    <script>
+      function setStatus(msg, isErr) {
+        const el = document.getElementById('status');
+        el.textContent = msg;
+        el.style.color = isErr ? '#b91c1c' : '#1f2937';
+      }
+
+      function saveProps() {
+        const projectId = document.getElementById('projectId').value.trim();
+        const commandsTopic = document.getElementById('commandsTopic').value.trim();
+        const statusTopic = document.getElementById('statusTopic').value.trim();
+        setStatus('Saving...', false);
+        google.script.run.withSuccessHandler(() => setStatus('Saved.', false))
+          .withFailureHandler(err => setStatus('Save failed: ' + err.message, true))
+          .saveScriptProps({ projectId, commandsTopic, statusTopic });
+      }
+
+      function sendTest() {
+        setStatus('Sending test NOTE...', false);
+        google.script.run.withSuccessHandler(() => setStatus('Test NOTE published.', false))
+          .withFailureHandler(err => setStatus('Publish failed: ' + err.message, true))
+          .sendTestPublish();
+      }
+
+      function pingBridge() {
+        setStatus('Pinging bridge...', false);
+        google.script.run.withSuccessHandler(() => setStatus('PING sent. Pull status for PONG.', false))
+          .withFailureHandler(err => setStatus('Ping failed: ' + err.message, true))
+          .sendBridgePing();
+      }
+
+      function listOutputs() {
+        setStatus('Requesting outputs...', false);
+        google.script.run.withSuccessHandler(() => setStatus('Requested. Pull status for OUTPUTS.', false))
+          .withFailureHandler(err => setStatus('Request failed: ' + err.message, true))
+          .requestOutputsList();
+      }
+
+      function setOutput() {
+        const name = document.getElementById('outputName').value.trim();
+        if (!name) { setStatus('Enter an output name.', true); return; }
+        setStatus('Setting output to ' + name + '...', false);
+        google.script.run.withSuccessHandler(() => setStatus('Requested output switch. Pull status for OUTPUTS.', false))
+          .withFailureHandler(err => setStatus('Set failed: ' + err.message, true))
+          .setBridgeOutput(name);
+      }
+
+      // Prefill props
+      google.script.run.withSuccessHandler((props) => {
+        if (props.GCP_PROJECT_ID) document.getElementById('projectId').value = props.GCP_PROJECT_ID;
+        document.getElementById('commandsTopic').value = props.COMMANDS_TOPIC || 'dawsheet.commands';
+        document.getElementById('statusTopic').value = props.STATUS_TOPIC || 'dawsheet.status';
+      }).getScriptProps();
+    </script>
+  </body>
+  </html>

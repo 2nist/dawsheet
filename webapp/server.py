@@ -6,8 +6,15 @@ from fastapi import FastAPI, HTTPException, Query
 from pydantic import BaseModel, Field
 
 from dawsheet.io.sheets import SheetsClient
+from fastapi import APIRouter
+from webapp.routers import parse as parse_router
+from webapp.routers import hints as hints_router
 
 app = FastAPI(title='DAWSheet Internal API')
+
+# include parse router
+app.include_router(parse_router.router, prefix="")
+app.include_router(hints_router.router, prefix="")
 
 
 class Event(BaseModel):
